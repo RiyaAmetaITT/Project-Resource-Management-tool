@@ -15,7 +15,6 @@ sequenceDiagram
     participant Server
     participant DB
 
-    rect rgb(240, 248, 255)
     Note over Admin,DB: Admin: User Setup & Maintenance
     Admin->>Console: Create User Account OR Reset Password
     Console->>Server: POST /admin/users OR PUT /admin/users/{id}/reset-password
@@ -23,9 +22,7 @@ sequenceDiagram
     DB-->>Server: OK
     Server-->>Console: Success
     Console-->>Admin: "Account created / Password reset. ✓"
-    end
 
-    rect rgb(245, 245, 245)
     Note over User,DB: User: Login Flow
     User->>Console: Enter credentials
     Console->>Server: POST /auth/login
@@ -51,7 +48,6 @@ sequenceDiagram
             Console-->>User: Route to role menu (Admin/Manager/Employee)
         end
     end
-    end
 ```
 
 ---
@@ -66,7 +62,6 @@ sequenceDiagram
     participant Server
     participant DB
 
-    rect rgb(240, 248, 255)
     Note over Admin,DB: Employee & Skill Management
     Admin->>Console: Add Employee / Manage Skills / Deactivate Employee
     Console->>Server: POST /admin/employees OR /skills OR /deactivate
@@ -74,9 +69,7 @@ sequenceDiagram
     DB-->>Server: OK
     Server-->>Console: Success response
     Console-->>Admin: Action confirmed
-    end
 
-    rect rgb(245, 245, 245)
     Note over Admin,DB: Project Setup
     Admin->>Console: Create Project & Add Milestones
     Console->>Server: POST /admin/projects & /milestones
@@ -84,9 +77,7 @@ sequenceDiagram
     DB-->>Server: OK
     Server-->>Console: Success response
     Console-->>Admin: Action confirmed
-    end
     
-    rect rgb(240, 248, 255)
     Note over Admin,DB: System Configuration
     Admin->>Console: Update Config (e.g., LLM Key, Max Hours)
     Console->>Server: PUT /admin/config
@@ -94,7 +85,6 @@ sequenceDiagram
     DB-->>Server: OK
     Server-->>Console: 200 OK
     Console-->>Admin: "Settings updated. ✓"
-    end
 ```
 
 ---
@@ -167,7 +157,6 @@ sequenceDiagram
     participant DB
     participant LLM
 
-    rect rgb(240, 248, 255)
     Note over Employee,DB: Employee: Timesheet Management
     Employee->>Console: Login
     Console->>Server: Check for missed timesheets
@@ -183,9 +172,7 @@ sequenceDiagram
     Server->>DB: INSERT timesheet & tags
     Server-->>Console: 201 Created
     Console-->>Employee: "Timesheet SUBMITTED ✓"
-    end
 
-    rect rgb(245, 245, 245)
     Note over Manager,LLM: Manager: Review & Project Health
     Manager->>Console: View Team Timesheets
     Console->>Server: GET /manager/timesheets
@@ -205,7 +192,6 @@ sequenceDiagram
         LLM-->>Server: Risk summary paragraph
         Server-->>Console: AI Risk Summary
         Console-->>Manager: Display generated paragraph
-    end
     end
 ```
 
