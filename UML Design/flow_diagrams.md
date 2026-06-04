@@ -39,11 +39,11 @@ flowchart TD
     AdminMenu[[Admin Menu]]
     
     AdminMenu --> MngEmp[1. Manage Employees]
-    MngEmp --> AddEmp[Add Employee]
     MngEmp --> ViewEmp[View All Employees]
     MngEmp --> UpdateEmp[Update Employee]
     MngEmp --> DeactEmp[Deactivate Employee]
     MngEmp --> MngSkills[Manage Employee Skills]
+    MngEmp --> AssignMgr[Assign Manager to Employee]
     MngEmp -. "Back" .-> AdminMenu
     
     AdminMenu --> MngProj[2. Manage Projects]
@@ -71,9 +71,13 @@ flowchart TD
     SysConfig -. "Back" .-> AdminMenu
 ```
 
+> **V4 Changes:** "Add Employee" removed from Manage Employees; "Assign Manager" (Screen 3.1.4) added.
+
 ---
 
 ## 3. Manager Menu Navigation
+
+> **V4 Scoping Rule:** All employee lookups on this menu are scoped to the Manager's own team (employees with `manager_id` matching the logged-in Manager). Managers do not have company-wide employee visibility.
 
 ```mermaid
 flowchart TD
@@ -92,6 +96,7 @@ flowchart TD
     
     ManagerMenu --> MyProj[3. My Projects]
     MyProj --> ProjDetail[View Project Details]
+    ProjDetail --> RiskFlags[View Risk Flags]
     ProjDetail --> AIRisk[Get AI Risk Summary]
     AIRisk -. "Back" .-> ProjDetail
     ProjDetail -. "Back" .-> MyProj
@@ -110,6 +115,8 @@ flowchart TD
     AIAssist -. "Back" .-> ManagerMenu
 ```
 
+> **V4 Changes:** Added "Risk Flags" view in Project Detail (Screen 4.3 now shows per-milestone and per-resource risk indicators).
+
 ---
 
 ## 4. Employee Menu Navigation
@@ -126,7 +133,8 @@ flowchart TD
     EmployeeMenu --> SubTS[1. Submit Timesheet]
     SubTS --> PickWeek[Pick Week]
     PickWeek --> LogProj[Log Hours & Tags per Project]
-    LogProj --> Submit[Confirm & Submit]
+    LogProj --> Summary[Review Summary]
+    Summary --> Submit[Confirm & Submit]
     Submit -. "Back" .-> EmployeeMenu
     
     EmployeeMenu --> ViewTS[2. View My Timesheets]
@@ -137,6 +145,8 @@ flowchart TD
     EmployeeMenu --> ViewAlloc[3. View My Allocations]
     ViewAlloc -. "Back" .-> EmployeeMenu
 ```
+
+> **V4 Changes:** Added "Review Summary" step before Submit in Screen 5.1 — employees see a total hours summary before confirming. Allocation status column added to Screen 5.3.
 
 ---
 
@@ -149,7 +159,8 @@ flowchart TD
     
     subgraph System Backend Process
         Req --> API[Server API Called]
-        API --> FilterCap[Filter employees with free capacity]
+        API --> ScopeTeam[Filter to Manager's team only]
+        ScopeTeam --> FilterCap[Filter employees with free capacity]
         FilterCap --> CheckEmpty{Found Candidates?}
         CheckEmpty -- No --> ReturnEmpty[Return: No one has capacity]
         CheckEmpty -- Yes --> GatherData[Gather skills, allocations, recent tags]
@@ -172,6 +183,8 @@ flowchart TD
     Confirm --> SaveDB[(Save to Database)]
     SaveDB --> End([Allocation Completed])
 ```
+
+> **V4 Change:** Added `ScopeTeam` step — the system now filters candidates to the Manager's team before capacity checks.
 
 ---
 
@@ -202,9 +215,9 @@ flowchart TD
     subgraph Step 3: Compute Project Health
         Step3[Fetch projects, milestones, timesheet stats]
         Step3 --> EvalRisk{Evaluate Health Rules}
-        EvalRisk -- "Milestone overdue OR hours critical" --> RiskRed[Set health_status = 🔴 AT RISK]
-        EvalRisk -- "Milestone approaching OR hours low" --> RiskYel[Set health_status = 🟡 ATTENTION]
-        EvalRisk -- "On time & expected hours" --> RiskGrn[Set health_status = 🟢 ON TRACK]
+        EvalRisk -- "Milestone overdue OR hours critical" --> RiskRed[Set health_status = AT RISK]
+        EvalRisk -- "Milestone approaching OR hours low" --> RiskYel[Set health_status = ATTENTION]
+        EvalRisk -- "On time & expected hours" --> RiskGrn[Set health_status = ON TRACK]
     end
     
     RiskRed --> Sleep

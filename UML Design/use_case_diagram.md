@@ -5,9 +5,9 @@ The following diagram maps out the primary actors (Admin, Manager, and Employee)
 ```mermaid
 flowchart LR
     %% Actors
-    Admin(("Admin 🛠️"))
-    Manager(("Manager 👔"))
-    Employee(("Employee 👷"))
+    Admin(("Admin"))
+    Manager(("Manager"))
+    Employee(("Employee"))
 
     %% System Boundary
     subgraph PRM [Project & Resource Management System]
@@ -20,8 +20,9 @@ flowchart LR
         %% Admin Cases
         UC_ManageUsers(Manage User Accounts)
         UC_ManageEmp(Manage Employee Profiles)
+        UC_AssignMgr(Assign Manager to Employee)
         UC_ManageSkills(Manage Employee Skills)
-        UC_ManageProj(Create Projects & Milestones)
+        UC_ManageProj(Create & Manage Projects & Milestones)
         UC_SysConfig(System Configuration)
         
         %% Manager Cases
@@ -40,34 +41,35 @@ flowchart LR
     end
 
     %% Shared Connections
-    Admin ---> UC_Login
-    Manager ---> UC_Login
-    Employee ---> UC_Login
+    Admin --> UC_Login
+    Manager --> UC_Login
+    Employee --> UC_Login
     
     UC_Login -. "<<includes>>" .-> UC_Pwd
 
     %% Admin Connections
-    Admin ---> UC_ManageUsers
-    Admin ---> UC_ManageEmp
-    Admin ---> UC_ManageSkills
-    Admin ---> UC_ManageProj
-    Admin ---> UC_SysConfig
+    Admin --> UC_ManageUsers
+    Admin --> UC_ManageEmp
+    Admin --> UC_AssignMgr
+    Admin --> UC_ManageSkills
+    Admin --> UC_ManageProj
+    Admin --> UC_SysConfig
 
     %% Manager Connections
-    Manager ---> UC_Dashboard
-    Manager ---> UC_Allocate
-    Manager ---> UC_EndAlloc
-    Manager ---> UC_MyProj
-    Manager ---> UC_TeamTS
+    Manager --> UC_Dashboard
+    Manager --> UC_Allocate
+    Manager --> UC_EndAlloc
+    Manager --> UC_MyProj
+    Manager --> UC_TeamTS
     
     %% Manager AI Extensions
     UC_Allocate -. "<<extends>>" .-> UC_AISkill
     UC_MyProj -. "<<extends>>" .-> UC_AIRisk
 
     %% Employee Connections
-    Employee ---> UC_SubmitTS
-    Employee ---> UC_MyTS
-    Employee ---> UC_MyAlloc
+    Employee --> UC_SubmitTS
+    Employee --> UC_MyTS
+    Employee --> UC_MyAlloc
 
     %% Styling to make it look like a Use Case Diagram
     classDef actor fill:#f9f9f9,stroke:#333,stroke-width:2px,color:#000,shape:circle
@@ -75,7 +77,7 @@ flowchart LR
     classDef system fill:none,stroke:#333,stroke-width:3px,stroke-dasharray: 5 5
     
     class Admin,Manager,Employee actor
-    class UC_Login,UC_Pwd,UC_ManageUsers,UC_ManageEmp,UC_ManageSkills,UC_ManageProj,UC_SysConfig,UC_Dashboard,UC_Allocate,UC_EndAlloc,UC_AISkill,UC_MyProj,UC_AIRisk,UC_TeamTS,UC_SubmitTS,UC_MyTS,UC_MyAlloc usecase
+    class UC_Login,UC_Pwd,UC_ManageUsers,UC_ManageEmp,UC_AssignMgr,UC_ManageSkills,UC_ManageProj,UC_SysConfig,UC_Dashboard,UC_Allocate,UC_EndAlloc,UC_AISkill,UC_MyProj,UC_AIRisk,UC_TeamTS,UC_SubmitTS,UC_MyTS,UC_MyAlloc usecase
     class PRM system
 ```
 
@@ -84,3 +86,9 @@ flowchart LR
 1. **`<<includes>>`**: The `Login & Authenticate` use case _includes_ `Change Password on First Login` because the system enforces this flow automatically if the `force_password_change` flag is true.
 2. **`<<extends>>`**: `Find Resource via AI Skill Match` _extends_ the `Allocate Resource` use case, meaning it is an optional AI-driven path the manager can take to accomplish the goal of allocation.
 3. **`<<extends>>`**: `Generate AI Risk Summary` _extends_ the `View My Projects Health` use case, as it is an optional analytical tool the manager can trigger while viewing project details.
+4. **`Assign Manager to Employee`**: New Admin use case added in V4 — Admin can link an employee record to a specific manager user (Screen 3.1.4).
+
+### Changes from V3 → V4:
+- **Added** `UC_AssignMgr` (Assign Manager to Employee) — new Admin use case per Screen 3.1.4.
+- **Removed** `UC_AddEmp` (Add Employee) from the use case list — V4's Screen 3.1 (Manage Employees) drops the "Add Employee" menu option entirely; employees are created by creating a User account and then using Assign Manager.
+- **Manager Visibility Scope Note:** Managers now only see their own team's employees — this is a BRD V4 scoping constraint applied to `UC_Dashboard` and `UC_Allocate`.

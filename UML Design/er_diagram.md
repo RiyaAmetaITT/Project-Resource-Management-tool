@@ -1,12 +1,13 @@
 # PRM Tool — Entity-Relationship (ER) Diagram
 
-Based on the BRD requirements, the following ER diagram models the underlying database schema necessary to support the application.
+Based on the BRD V4 requirements, the following ER diagram models the underlying database schema necessary to support the application.
 
 ```mermaid
 erDiagram
     %% Relationships
     USER ||--o| EMPLOYEE : "has profile"
     USER ||--o{ PROJECT : "manages"
+    USER ||--o{ EMPLOYEE : "is manager of"
     
     EMPLOYEE ||--o{ EMPLOYEE_SKILL : "possesses"
     EMPLOYEE ||--o{ ALLOCATION : "assigned to"
@@ -34,6 +35,7 @@ erDiagram
     EMPLOYEE {
         int id PK
         int user_id FK "Nullable for system Admins"
+        int manager_id FK "References USER (Manager role) — NEW in V4"
         string name
         string email
         string department
@@ -57,7 +59,8 @@ erDiagram
         string description
         date start_date
         date end_date
-        enum status "PLANNED, ACTIVE, ON_HOLD"
+        int total_story_points "NEW in V4"
+        enum status "PLANNED, ACTIVE, ON_HOLD, COMPLETED"
         enum health_status "ON_TRACK, ATTENTION, AT_RISK"
         int manager_id FK "References USER (Manager)"
     }
@@ -67,6 +70,7 @@ erDiagram
         int project_id FK
         string title
         date due_date
+        int story_points "NEW in V4"
         enum status "NOT_STARTED, IN_PROGRESS, DONE"
         enum health_flag "NORMAL, OVERDUE"
     }
@@ -84,7 +88,7 @@ erDiagram
         int id PK
         int employee_id FK
         date week_start_date
-        enum status "SUBMITTED"
+        enum status "SUBMITTED, MISSED"
     }
     
     TIMESHEET_ENTRY {
@@ -110,6 +114,15 @@ erDiagram
 ```
 
 ### Key Design Notes:
-1. **User vs. Employee Separation:** The `USER` table handles login credentials and roles. The `EMPLOYEE` table handles HR/work profile data. The Admin adds a User account first, then links an Employee profile to it. Admin users themselves exist in `USER` but do not need an `EMPLOYEE` record.
-2. **AI Input Data Source:** The LLM's answers are fueled by joining `EMPLOYEE`, `EMPLOYEE_SKILL`, `ALLOCATION` (to calculate free capacity), and `ACTIVITY_TAG` (for recent practical skill evidence) via the `TIMESHEET_ENTRY`.
-3. **System Settings:** A single-row `SYSTEM_CONFIG` table stores dynamic application settings like the LLM key and the scheduler execution interval.
+1. **User vs. Employee Separation:** The `USER` table handles login credentials and roles. The `EMPLOYEE` table handles HR/work profile data. Admin adds a User account first, then assigns a manager to the employee profile. Admin users exist in `USER` but do not need an `EMPLOYEE` record.
+2. **Manager-Employee Relationship (V4 NEW):** `EMPLOYEE` now has a `manager_id` FK referencing `USER`. This enables the manager-scoped visibility on the Resource Dashboard and Allocate Resource screens — managers only see employees under their own team.
+3. **Story Points (V4 NEW):** `PROJECT` gains a `total_story_points` field, and `MILESTONE` gains a `story_points` field. These are displayed in Screen 3.2.2 (View All Projects) and Screen 3.2.4 (Manage Milestones) to track project progress.
+4. **Project Status `COMPLETED` (V4 NEW):** The `PROJECT.status` enum now includes a `COMPLETED` value visible in Screen 3.2.3 (Update Project Details).
+5. **AI Input Data Source:** The LLM's answers are fuelled by joining `EMPLOYEE`, `EMPLOYEE_SKILL`, `ALLOCATION` (to calculate free capacity), and `ACTIVITY_TAG` (for recent practical skill evidence) via the `TIMESHEET_ENTRY`.
+6. **System Settings:** A single-row `SYSTEM_CONFIG` table stores dynamic application settings like the LLM key and the scheduler execution interval.
+
+### Changes from V3 → V4:
+- **EMPLOYEE**: Added `manager_id FK` (references `USER`) — required for manager-scoped team visibility.
+- **PROJECT**: Added `total_story_points INT` field; added `COMPLETED` to the `status` enum.
+- **MILESTONE**: Added `story_points INT` field.
+- **USER → EMPLOYEE**: Added new "is manager of" relationship line to reflect the `manager_id` FK.

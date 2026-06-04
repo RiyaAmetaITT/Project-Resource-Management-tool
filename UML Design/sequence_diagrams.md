@@ -1,11 +1,11 @@
 # PRM Tool — Consolidated Sequence Diagrams
 
-I have merged the 21 individual sequence diagrams into **5 comprehensive, role-based workflows**. This provides a clearer view of how the system operates end-to-end.
+These 5 comprehensive, role-based workflows show how the system operates end-to-end.
 
 ---
 
 ## 1. Authentication & User Management
-Covers Admin creating/resetting users, and the User login flow (including the forced password change on first login).
+Covers Admin creating/resetting users, assigning managers, and the User login flow (including the forced password change on first login).
 
 ```mermaid
 sequenceDiagram
@@ -22,6 +22,14 @@ sequenceDiagram
     DB-->>Server: OK
     Server-->>Console: Success
     Console-->>Admin: "Account created / Password reset. ✓"
+
+    Note over Admin,DB: Admin: Assign Manager to Employee (NEW V4)
+    Admin->>Console: Assign Manager (Screen 3.1.4)
+    Console->>Server: PUT /admin/employees/{empId}/assign-manager
+    Server->>DB: UPDATE employee SET manager_id = managerId
+    DB-->>Server: OK
+    Server-->>Console: 200 OK
+    Console-->>Admin: "Manager assigned. ✓"
 
     Note over User,DB: User: Login Flow
     User->>Console: Enter credentials
@@ -53,7 +61,7 @@ sequenceDiagram
 ---
 
 ## 2. Core Admin Setup
-Covers all standard administrative tasks: managing employees, skills, projects, and system configuration.
+Covers all standard administrative tasks: managing employees, skills, projects (with story points), and system configuration.
 
 ```mermaid
 sequenceDiagram
@@ -63,21 +71,29 @@ sequenceDiagram
     participant DB
 
     Note over Admin,DB: Employee & Skill Management
-    Admin->>Console: Add Employee / Manage Skills / Deactivate Employee
-    Console->>Server: POST /admin/employees OR /skills OR /deactivate
-    Server->>DB: INSERT/UPDATE employees & skills
+    Admin->>Console: Update Employee / Manage Skills / Deactivate Employee
+    Console->>Server: PUT /admin/employees/{id} OR /skills OR /deactivate
+    Server->>DB: UPDATE employees & skills
     DB-->>Server: OK
     Server-->>Console: Success response
     Console-->>Admin: Action confirmed
 
-    Note over Admin,DB: Project Setup
-    Admin->>Console: Create Project & Add Milestones
-    Console->>Server: POST /admin/projects & /milestones
-    Server->>DB: INSERT INTO projects & milestones
+    Note over Admin,DB: Project Setup (with Story Points — NEW V4)
+    Admin->>Console: Create Project (name, dates, status, managerId, totalStoryPoints)
+    Console->>Server: POST /admin/projects
+    Server->>DB: INSERT INTO projects (including total_story_points)
     DB-->>Server: OK
     Server-->>Console: Success response
     Console-->>Admin: Action confirmed
-    
+
+    Note over Admin,DB: Milestone Management (with Story Points — NEW V4)
+    Admin->>Console: Add Milestone (title, dueDate, storyPoints)
+    Console->>Server: POST /admin/projects/{id}/milestones
+    Server->>DB: INSERT INTO milestones (including story_points)
+    DB-->>Server: OK
+    Server-->>Console: Success response
+    Console-->>Admin: "Milestone added. ✓"
+
     Note over Admin,DB: System Configuration
     Admin->>Console: Update Config (e.g., LLM Key, Max Hours)
     Console->>Server: PUT /admin/config
@@ -90,7 +106,7 @@ sequenceDiagram
 ---
 
 ## 3. Manager Resource Allocation (incl. AI)
-Covers viewing the dashboard, finding resources (via AI or direct), and executing the allocation.
+Covers viewing the team-scoped dashboard, finding resources (via AI or direct), and executing the allocation.
 
 ```mermaid
 sequenceDiagram
@@ -102,35 +118,36 @@ sequenceDiagram
 
     Manager->>Console: View Resource Dashboard
     Console->>Server: GET /manager/resources/dashboard
-    Server->>DB: SELECT Bench & Allocated employees
-    DB-->>Server: Data
+    Server->>DB: SELECT Bench & Allocated employees WHERE manager_id = Manager
+    DB-->>Server: Data (team-scoped)
     Server-->>Console: Dashboard Data
-    Console-->>Manager: Display Dashboard
+    Console-->>Manager: Display Dashboard (team members only)
 
     Note over Manager,LLM: Allocation Options
 
     alt AI-Assisted Allocation
         Manager->>Console: Describe requirement in plain English
         Console->>Server: POST /manager/ai/skill-match
-        Server->>DB: Get candidates with free capacity
+        Server->>DB: Get team candidates with free capacity
         Server->>LLM: Send requirement + candidate summaries
         LLM-->>Server: Ranked list with plain-English reasons
         Server-->>Console: AI Match Results
         Console-->>Manager: Display AI suggestions
     else Direct Allocation
-        Manager->>Console: Select Employee ID
+        Manager->>Console: Select Employee ID (must be in their team)
         Console->>Server: GET /manager/employees/{id}/utilisation
         Server-->>Console: Current utilisation %
     else End Allocation
-        Manager->>Console: End existing allocation
+        Manager->>Console: End existing allocation on their project
         Console->>Server: PUT /manager/allocations/{id}/end
         Server->>DB: UPDATE allocations SET to_date = TODAY
+        Server->>DB: Recompute employee utilisation & status
         Server-->>Console: Success
     end
 
     opt Confirming a New Allocation
         Manager->>Console: Enter %, Dates & Confirm
-        Console->>Server: POST /manager/allocations/validate
+        Console->>Server: POST /manager/allocations
         Server->>DB: Verify overlapping utilisation
         alt Over-allocated (>100%)
             Server-->>Console: 400 Bad Request
@@ -163,27 +180,29 @@ sequenceDiagram
     Server-->>Console: status (MISSED / SUBMITTED)
     Console-->>Employee: Show reminder if missed
 
-    Employee->>Console: Submit Timesheet
+    Employee->>Console: Submit Timesheet (Screen 5.1)
     Console->>Server: GET active allocations
     Server-->>Console: Projects & expected hours max
-    Employee->>Console: Enter hours & activity tags
+    Employee->>Console: Enter hours & activity tags per project
+    Console-->>Employee: Show Summary (total hours vs max)
+    Employee->>Console: Confirm & Submit
     Console->>Server: POST /employee/timesheets
-    Server->>Server: Validate hours ≤ allocated max
-    Server->>DB: INSERT timesheet & tags
+    Server->>Server: Validate hours <= allocated max & no future week
+    Server->>DB: INSERT timesheet, entries & activity tags
     Server-->>Console: 201 Created
     Console-->>Employee: "Timesheet SUBMITTED ✓"
 
     Note over Manager,LLM: Manager: Review & Project Health
-    Manager->>Console: View Team Timesheets
+    Manager->>Console: View Team Timesheets (filtered to own team)
     Console->>Server: GET /manager/timesheets
-    Server->>DB: SELECT team timesheets (flag MISSED)
+    Server->>DB: SELECT team timesheets WHERE manager_id = Manager (flag MISSED)
     Server-->>Console: Timesheet summary
     Console-->>Manager: Show SUBMITTED/MISSED status
-    
-    Manager->>Console: View Project Details
+
+    Manager->>Console: View Project Details (Screen 4.3)
     Console->>Server: GET /manager/projects/{id}/detail
-    Server-->>Console: Project health, milestones, hours
-    
+    Server-->>Console: Project health, risk flags, milestones (SP done/total), allocated resources
+
     opt Request AI Risk Summary
         Manager->>Console: Get AI Risk Summary
         Console->>Server: POST /manager/ai/risk-summary
@@ -218,16 +237,23 @@ sequenceDiagram
         Scheduler->>DB: UPDATE milestone SET health_flag = OVERDUE
 
         Note over Scheduler,DB: Step 3: Compute Project Health
-        Scheduler->>DB: SELECT projects, milestones, timesheet stats
+        Scheduler->>DB: SELECT projects, milestones (SP done vs total), timesheet stats
         Scheduler->>Scheduler: Apply Health Rules
         alt Milestone overdue OR hours critical
-            Scheduler->>DB: UPDATE health_status = 🔴 AT RISK
+            Scheduler->>DB: UPDATE health_status = AT RISK
         else Milestone approaching OR hours low
-            Scheduler->>DB: UPDATE health_status = 🟡 ATTENTION
+            Scheduler->>DB: UPDATE health_status = ATTENTION
         else On time & expected hours
-            Scheduler->>DB: UPDATE health_status = 🟢 ON TRACK
+            Scheduler->>DB: UPDATE health_status = ON TRACK
         end
 
         Scheduler->>Scheduler: Sleep until next interval
     end
 ```
+
+### Changes from V3 → V4:
+- **Sequence 1**: Added "Assign Manager" interaction (new Screen 3.1.4 flow).
+- **Sequence 2**: Updated Project creation to include `totalStoryPoints`; updated Milestone creation to include `storyPoints`.
+- **Sequence 3**: Dashboard and allocation candidate queries now scoped to `manager_id`. End allocation now also recomputes employee status.
+- **Sequence 4**: Added "Show Summary" step before submit in Employee timesheet flow. Manager timesheets view now also scoped to team. Project detail response now includes risk flags and SP progress.
+- **Sequence 5**: Scheduler Step 3 DB query now includes milestone story points for SP-based health computation.
