@@ -114,7 +114,7 @@ erDiagram
 ```
 
 ### Key Design Notes:
-1. **User vs. Employee Separation:** The `USER` table handles login credentials and roles. The `EMPLOYEE` table handles HR/work profile data. Admin adds a User account first, then assigns a manager to the employee profile. Admin users exist in `USER` but do not need an `EMPLOYEE` record.
+1. **User vs. Employee Separation:** The `USER` table handles login credentials and roles. The `EMPLOYEE` table handles HR/work profile data. In V4, Admin creates a User account (Screen 3.4.1) and the server auto-creates an employee profile for MANAGER and EMPLOYEE roles; Admin then updates the profile and assigns a manager (Screen 3.1.4). Admin users exist in `USER` but do not need an `EMPLOYEE` record.
 2. **Manager-Employee Relationship (V4 NEW):** `EMPLOYEE` now has a `manager_id` FK referencing `USER`. This enables the manager-scoped visibility on the Resource Dashboard and Allocate Resource screens — managers only see employees under their own team.
 3. **Story Points (V4 NEW):** `PROJECT` gains a `total_story_points` field, and `MILESTONE` gains a `story_points` field. These are displayed in Screen 3.2.2 (View All Projects) and Screen 3.2.4 (Manage Milestones) to track project progress.
 4. **Project Status `COMPLETED` (V4 NEW):** The `PROJECT.status` enum now includes a `COMPLETED` value visible in Screen 3.2.3 (Update Project Details).

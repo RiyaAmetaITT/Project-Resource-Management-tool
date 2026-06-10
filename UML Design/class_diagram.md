@@ -83,9 +83,8 @@ classDiagram
         }
         class AdminController {
             +createUser(UserDto) Response
-            +addEmployee(EmployeeDto) Response
             +deactivateEmployee(id) Response
-            +assignManager(empId, managerId) Response
+            +assignManager(employeeUserId, managerId) Response
             +updateSystemConfig(ConfigDto) Response
         }
         class ManagerController {
@@ -112,10 +111,10 @@ classDiagram
         }
         
         class AdminService {
-            +registerUser(UserDto) User
-            +registerEmployeeProfile(EmployeeDto) Employee
+            +createUser(UserDto) User
+            +createEmployeeProfileOnUserCreate(UserDto) Employee
             +deactivateProfile(empId)
-            +assignManager(empId, managerId)
+            +assignManager(employeeUserId, managerId)
         }
         
         class AllocationService {

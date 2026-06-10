@@ -18,15 +18,15 @@ sequenceDiagram
     Note over Admin,DB: Admin: User Setup & Maintenance
     Admin->>Console: Create User Account OR Reset Password
     Console->>Server: POST /admin/users OR PUT /admin/users/{id}/reset-password
-    Server->>DB: INSERT/UPDATE user (set force_password_change = true)
+    Server->>DB: INSERT user (+ employee profile for MANAGER/EMPLOYEE) OR UPDATE password (force_password_change = true)
     DB-->>Server: OK
     Server-->>Console: Success
     Console-->>Admin: "Account created / Password reset. ✓"
 
-    Note over Admin,DB: Admin: Assign Manager to Employee (NEW V4)
+    Note over Admin,DB: Admin: Assign Manager to Employee (V4)
     Admin->>Console: Assign Manager (Screen 3.1.4)
-    Console->>Server: PUT /admin/employees/{empId}/assign-manager
-    Server->>DB: UPDATE employee SET manager_id = managerId
+    Console->>Server: PUT /admin/employees/assign-manager {employeeUserId, managerId}
+    Server->>DB: UPDATE employee SET manager_id = managerId WHERE user_id = employeeUserId
     DB-->>Server: OK
     Server-->>Console: 200 OK
     Console-->>Admin: "Manager assigned. ✓"
