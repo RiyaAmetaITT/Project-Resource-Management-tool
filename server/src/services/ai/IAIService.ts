@@ -1,6 +1,6 @@
 /**
  * AI service interface — Strategy Pattern.
- * Concrete implementations: GeminiAIService, GroqAIService.
+ * Concrete implementation: GemmaAIService.
  * Business code depends only on this interface, never on a specific provider.
  */
 
@@ -37,7 +37,33 @@ export interface ProjectFacts {
   }>;
 }
 
+export interface TeamBuildCandidateSkill {
+  skillName: string;
+  proficiencyLevel: string;
+}
+
+export interface TeamBuildCandidate {
+  employeeId: number;
+  name: string;
+  department: string;
+  designation: string;
+  skills: TeamBuildCandidateSkill[];
+}
+
+/** Raw AI output for one role in a team-build request. */
+export interface TeamBuildRoleAssignment {
+  roleTitle: string;
+  requiredSkills: string[];
+  assignedName: string | null;
+  matchedSkills: string[];
+  reason: string;
+}
+
 export interface IAIService {
   generateSkillMatch(requirement: string, candidates: CandidateSummary[]): Promise<SkillMatchResult[]>;
   generateRiskSummary(facts: ProjectFacts): Promise<string>;
+  generateTeamBuild(
+    requirement: string,
+    benchCandidates: TeamBuildCandidate[],
+  ): Promise<TeamBuildRoleAssignment[]>;
 }

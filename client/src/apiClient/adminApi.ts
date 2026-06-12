@@ -1,43 +1,116 @@
 import apiClient from './baseClient';
+import {
+  AllocationSummary,
+  CreateUserPayload,
+  EmployeeDeactivatePreview,
+  EmployeeSkillSummary,
+  EmployeeSummary,
+  MilestoneSummary,
+  ProjectDetail,
+  ProjectSummary,
+  SystemConfigSummary,
+  UserSummary,
+} from '../types/admin';
+
+interface ApiDataResponse<T> {
+  data: T;
+}
+
+async function getData<T>(path: string): Promise<T> {
+  const response = await apiClient.get<ApiDataResponse<T>>(path);
+  return response.data.data;
+}
+
+async function postData<T>(path: string, body: unknown): Promise<T> {
+  const response = await apiClient.post<ApiDataResponse<T>>(path, body);
+  return response.data.data;
+}
+
+async function putData<T>(path: string, body: unknown): Promise<T> {
+  const response = await apiClient.put<ApiDataResponse<T>>(path, body);
+  return response.data.data;
+}
+
+async function putVoid(path: string, body?: unknown): Promise<void> {
+  await apiClient.put(path, body);
+}
+
+async function postVoid(path: string, body: unknown): Promise<void> {
+  await apiClient.post(path, body);
+}
+
+async function deleteVoid(path: string): Promise<void> {
+  await apiClient.delete(path);
+}
 
 export const adminApi = {
   // Users
-  createUser: (data: object) => apiClient.post('/admin/users', data).then((r) => r.data.data),
-  getAllUsers: () => apiClient.get('/admin/users').then((r) => r.data.data),
-  resetPassword: (id: number, newPassword: string) => apiClient.put(`/admin/users/${id}/reset-password`, { newPassword }),
-  deactivateUser: (id: number) => apiClient.put(`/admin/users/${id}/deactivate`),
-  reactivateUser: (id: number) => apiClient.put(`/admin/users/${id}/reactivate`),
+  createUser: (payload: CreateUserPayload): Promise<UserSummary> =>
+    postData('/admin/users', payload),
+
+  getAllUsers: (): Promise<UserSummary[]> => getData('/admin/users'),
+
+  resetPassword: (id: number, newPassword: string): Promise<void> =>
+    putVoid(`/admin/users/${id}/reset-password`, { newPassword }),
+
+  deactivateUser: (id: number): Promise<void> => putVoid(`/admin/users/${id}/deactivate`),
+
+  reactivateUser: (id: number): Promise<void> => putVoid(`/admin/users/${id}/reactivate`),
 
   // Employees
-  getAllEmployees: () => apiClient.get('/admin/employees').then((r) => r.data.data),
-  getEmployeeDeactivatePreview: (id: number) =>
-    apiClient.get(`/admin/employees/${id}/deactivate-preview`).then((r) => r.data.data),
-  updateEmployee: (id: number, data: object) => apiClient.put(`/admin/employees/${id}`, data),
-  deactivateEmployee: (id: number) => apiClient.put(`/admin/employees/${id}/deactivate`),
-  assignManager: (employeeUserId: number, managerId: number) =>
-    apiClient.put('/admin/employees/assign-manager', { employeeUserId, managerId }),
+  getAllEmployees: (): Promise<EmployeeSummary[]> => getData('/admin/employees'),
+
+  getEmployeeById: (id: number): Promise<EmployeeSummary> => getData(`/admin/employees/${id}`),
+
+  getEmployeeDeactivatePreview: (id: number): Promise<EmployeeDeactivatePreview> =>
+    getData(`/admin/employees/${id}/deactivate-preview`),
+
+  updateEmployee: (id: number, payload: Record<string, string>): Promise<void> =>
+    putVoid(`/admin/employees/${id}`, payload),
+
+  deactivateEmployee: (id: number): Promise<void> =>
+    putVoid(`/admin/employees/${id}/deactivate`),
+
+  assignManager: (employeeUserId: number, managerId: number): Promise<void> =>
+    putVoid('/admin/employees/assign-manager', { employeeUserId, managerId }),
 
   // Skills
-  getEmployeeSkills: (employeeId: number) => apiClient.get(`/admin/employees/${employeeId}/skills`).then((r) => r.data.data),
-  addSkill: (employeeId: number, data: object) => apiClient.post(`/admin/employees/${employeeId}/skills`, data),
-  updateSkill: (skillId: number, data: object) => apiClient.put(`/admin/skills/${skillId}`, data),
-  removeSkill: (skillId: number) => apiClient.delete(`/admin/skills/${skillId}`),
+  getEmployeeSkills: (employeeId: number): Promise<EmployeeSkillSummary[]> =>
+    getData(`/admin/employees/${employeeId}/skills`),
+
+  addSkill: (employeeId: number, payload: Record<string, string>): Promise<void> =>
+    postVoid(`/admin/employees/${employeeId}/skills`, payload),
+
+  updateSkill: (skillId: number, payload: Record<string, string>): Promise<void> =>
+    putVoid(`/admin/skills/${skillId}`, payload),
+
+  removeSkill: (skillId: number): Promise<void> => deleteVoid(`/admin/skills/${skillId}`),
 
   // Projects
-  createProject: (data: object) => apiClient.post('/admin/projects', data).then((r) => r.data.data),
-  getAllProjects: () => apiClient.get('/admin/projects').then((r) => r.data.data),
-  updateProject: (id: number, data: object) => apiClient.put(`/admin/projects/${id}`, data),
+  createProject: (payload: Record<string, unknown>): Promise<ProjectDetail> =>
+    postData('/admin/projects', payload),
+
+  getAllProjects: (): Promise<ProjectSummary[]> => getData('/admin/projects'),
+
+  updateProject: (id: number, payload: Record<string, unknown>): Promise<void> =>
+    putVoid(`/admin/projects/${id}`, payload),
 
   // Milestones
-  getMilestones: (projectId: number) => apiClient.get(`/admin/projects/${projectId}/milestones`).then((r) => r.data.data),
-  addMilestone: (projectId: number, data: object) => apiClient.post(`/admin/projects/${projectId}/milestones`, data),
-  updateMilestoneStatus: (milestoneId: number, status: string) =>
-    apiClient.put(`/admin/milestones/${milestoneId}/status`, { status }),
+  getMilestones: (projectId: number): Promise<MilestoneSummary[]> =>
+    getData(`/admin/projects/${projectId}/milestones`),
+
+  addMilestone: (projectId: number, payload: Record<string, unknown>): Promise<void> =>
+    postVoid(`/admin/projects/${projectId}/milestones`, payload),
+
+  updateMilestoneStatus: (milestoneId: number, status: string): Promise<void> =>
+    putVoid(`/admin/milestones/${milestoneId}/status`, { status }),
 
   // Allocations (read-only for admin)
-  getAllAllocations: () => apiClient.get('/admin/allocations').then((r) => r.data.data),
+  getAllAllocations: (): Promise<AllocationSummary[]> => getData('/admin/allocations'),
 
   // System Config
-  getConfig: () => apiClient.get('/admin/config').then((r) => r.data.data),
-  updateConfig: (data: object) => apiClient.put('/admin/config', data).then((r) => r.data.data),
+  getConfig: (): Promise<SystemConfigSummary> => getData('/admin/config'),
+
+  updateConfig: (payload: Record<string, unknown>): Promise<SystemConfigSummary> =>
+    putData('/admin/config', payload),
 };

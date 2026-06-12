@@ -11,20 +11,23 @@ const DEFAULT_ADMIN_USERNAME = 'admin';
 const DEFAULT_ADMIN_PASSWORD = 'Admin@1234';
 
 /**
- * Idempotent seed script — safe to run multiple times.
- * Creates the first Admin user if it does not already exist.
- * BRD §3.1: "The very first Admin account... is inserted directly into
- * the database using a one-time seed/setup script."
+ * Drops and recreates the database, runs migrations, and seeds the bootstrap admin.
+ * BRD §3.1: first Admin account is inserted via this one-time setup script.
  */
 async function seed(): Promise<void> {
+  const dbName = process.env.DB_NAME ?? 'prm_tool';
   const initPool = mysql.createPool({
     host: process.env.DB_HOST ?? 'localhost',
     port: Number(process.env.DB_PORT ?? 3306),
     user: process.env.DB_USER ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
+    multipleStatements: true,
   });
-  
-  await initPool.query('CREATE DATABASE IF NOT EXISTS prm_tool');
+
+  console.log(`Dropping database '${dbName}' if it exists...`);
+  await initPool.query(`DROP DATABASE IF EXISTS \`${dbName}\``);
+  console.log(`Creating database '${dbName}'...`);
+  await initPool.query(`CREATE DATABASE \`${dbName}\``);
   await initPool.end();
 
   const pool = mysql.createPool({
@@ -32,35 +35,23 @@ async function seed(): Promise<void> {
     port: Number(process.env.DB_PORT ?? 3306),
     user: process.env.DB_USER ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
-    database: process.env.DB_NAME ?? 'prm_tool',
+    database: dbName,
     multipleStatements: true,
   });
 
   console.log('Running migrations...');
   await runMigrations(pool);
 
-  console.log('Checking for existing admin...');
-  const [rows] = await pool.query(
-    'SELECT id FROM users WHERE username = ?',
-    [DEFAULT_ADMIN_USERNAME],
-  );
-
-  const existingUsers = rows as Array<{ id: number }>;
-  if (existingUsers.length > 0) {
-    console.log(`Admin user '${DEFAULT_ADMIN_USERNAME}' already exists. Seed skipped.`);
-    await pool.end();
-    return;
-  }
-
+  console.log('Creating bootstrap admin user...');
   const passwordHash = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, BCRYPT_SALT_ROUNDS);
 
   await pool.query(
-    `INSERT INTO users (username, email, full_name, password_hash, role, force_password_change, is_active)
-     VALUES (?, ?, ?, ?, 'ADMIN', TRUE, TRUE)`,
+    `INSERT INTO users (role_id, username, email, full_name, password_hash, force_password_change, is_active)
+     VALUES (1, ?, ?, ?, ?, TRUE, TRUE)`,
     [DEFAULT_ADMIN_USERNAME, 'admin@prm.local', 'System Admin', passwordHash],
   );
 
-  console.log('✓ Admin user created successfully.');
+  console.log('✓ Database created and admin user seeded.');
   console.log(`  Username : ${DEFAULT_ADMIN_USERNAME}`);
   console.log(`  Password : ${DEFAULT_ADMIN_PASSWORD}`);
   console.log('  ⚠  Change this password on first login.\n');

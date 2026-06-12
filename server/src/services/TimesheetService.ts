@@ -2,14 +2,20 @@ import { TimesheetRepository } from '../repositories/TimesheetRepository';
 import { TimesheetEntryRepository } from '../repositories/TimesheetEntryRepository';
 import { ActivityTagRepository } from '../repositories/ActivityTagRepository';
 import { AllocationRepository } from '../repositories/AllocationRepository';
-import { EmployeeRepository } from '../repositories/EmployeeRepository';
+import { ResourceRepository } from '../repositories/ResourceRepository';
 import { ProjectRepository } from '../repositories/ProjectRepository';
 import { SystemConfigRepository } from '../repositories/SystemConfigRepository';
-import { SubmitTimesheetDto, TimesheetResponseDto, TeamTimesheetRowDto } from '../dtos/timesheet.dto';
+import {
+  SubmitTimesheetDto,
+  TimesheetResponseDto,
+  TeamTimesheetRowDto,
+  EmployeeWeekTimesheetDetailDto,
+  SubmitTimesheetContextDto,
+  MissedTimesheetCheckDto,
+} from '../dtos/timesheet.dto';
 import { AppError } from '../errors/AppError';
 import { parseDate, getWeekStartDate, isFutureDate, formatDate } from '../utils/dateUtils';
-
-const MISSED_HISTORY_WEEKS = 12;
+import { DAYS_IN_WEEK, MAX_UTILISATION_PERCENT, MISSED_TIMESHEET_HISTORY_WEEKS } from '../constants';
 
 export class TimesheetService {
   constructor(
@@ -17,31 +23,41 @@ export class TimesheetService {
     private readonly entryRepository: TimesheetEntryRepository,
     private readonly tagRepository: ActivityTagRepository,
     private readonly allocationRepository: AllocationRepository,
-    private readonly employeeRepository: EmployeeRepository,
+    private readonly resourceRepository: ResourceRepository,
     private readonly projectRepository: ProjectRepository,
     private readonly configRepository: SystemConfigRepository,
   ) {}
 
-  async submitTimesheet(employeeId: number, dto: SubmitTimesheetDto): Promise<void> {
+  async submitTimesheet(resourceId: number, dto: SubmitTimesheetDto): Promise<void> {
     const config = await this.configRepository.getConfig();
     const weekStartDate = parseDate(dto.weekStartDate);
 
     this.assertNotFutureWeek(weekStartDate);
-    await this.assertNoDuplicateSubmission(employeeId, weekStartDate);
+    await this.assertNoDuplicateSubmission(resourceId, weekStartDate);
 
     const totalHours = dto.entries.reduce((sum, e) => sum + e.hours, 0);
     this.assertTotalHoursWithinLimit(totalHours, config.maxWeeklyHours);
 
-    const activeAllocations = await this.allocationRepository.findActiveByEmployee(employeeId);
+    const weekAllocations = await this.getAllocationsForWeek(resourceId, weekStartDate);
+    if (weekAllocations.length === 0) {
+      throw AppError.badRequest('You have no project allocations for this week.');
+    }
 
     for (const entry of dto.entries) {
-      const allocation = activeAllocations.find((a) => a.projectId === entry.projectId);
+      const allocation = weekAllocations.find((a) => a.projectId === entry.projectId);
       if (!allocation) {
         throw AppError.badRequest(
           `You are not allocated to project ${entry.projectId} during this week.`,
         );
       }
-      const maxHoursForProject = Math.floor((allocation.utilisationPercent / 100) * config.maxWeeklyHours);
+      if (entry.hours > 0 && entry.activityTags.length === 0) {
+        throw AppError.badRequest(
+          `Activity tags are required when logging hours for project ${entry.projectId}.`,
+        );
+      }
+      const maxHoursForProject = Math.floor(
+        (allocation.utilisationPercent / MAX_UTILISATION_PERCENT) * config.maxWeeklyHours,
+      );
       if (entry.hours > maxHoursForProject) {
         throw AppError.badRequest(
           `Hours for project ${entry.projectId} exceed your allocated max of ${maxHoursForProject} hrs.`,
@@ -49,7 +65,7 @@ export class TimesheetService {
       }
     }
 
-    const timesheet = await this.timesheetRepository.save({ employeeId, weekStartDate });
+    const timesheet = await this.timesheetRepository.save({ resourceId, weekStartDate });
 
     for (const entry of dto.entries) {
       const savedEntry = await this.entryRepository.save({
@@ -63,41 +79,43 @@ export class TimesheetService {
     }
   }
 
-  async getMyTimesheets(employeeId: number): Promise<TimesheetResponseDto[]> {
-    const employee = await this.employeeRepository.findById(employeeId);
-    const submitted = await this.timesheetRepository.findByEmployeeId(employeeId);
+  async getMyTimesheets(resourceId: number): Promise<TimesheetResponseDto[]> {
+    const profile = await this.resourceRepository.findProfileById(resourceId);
+    const submitted = await this.timesheetRepository.findByResourceId(resourceId);
     const submittedByWeek = new Map(
       submitted.map((ts) => [formatDate(new Date(ts.weekStartDate)), ts]),
     );
 
     const rows: TimesheetResponseDto[] = [];
 
-    for (let i = 0; i < MISSED_HISTORY_WEEKS; i++) {
+    for (let i = 0; i < MISSED_TIMESHEET_HISTORY_WEEKS; i++) {
       const weekStart = getWeekStartDate(new Date());
-      weekStart.setDate(weekStart.getDate() - i * 7);
+      weekStart.setDate(weekStart.getDate() - i * DAYS_IN_WEEK);
 
       if (isFutureDate(weekStart) || this.isCurrentWeek(weekStart)) continue;
 
-      const hadAllocation = await this.hadActiveAllocationDuringWeek(employeeId, weekStart);
+      const hadAllocation = await this.hadActiveAllocationDuringWeek(resourceId, weekStart);
       if (!hadAllocation) continue;
 
       const existing = submittedByWeek.get(formatDate(weekStart));
       if (existing) {
-        const entries = await this.entryRepository.findByTimesheetId(existing.id);
+        const entries = existing.status === 'MISSED'
+          ? []
+          : await this.entryRepository.findByTimesheetId(existing.id);
         const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
         rows.push({
           id: existing.id,
-          employeeId: existing.employeeId,
-          employeeName: employee?.name ?? 'Unknown',
+          employeeId: existing.resourceId,
+          employeeName: profile?.fullName ?? 'Unknown',
           weekStartDate: existing.weekStartDate,
           totalHours,
-          status: 'SUBMITTED',
+          status: existing.status,
         });
       } else {
         rows.push({
           id: 0,
-          employeeId,
-          employeeName: employee?.name ?? 'Unknown',
+          employeeId: resourceId,
+          employeeName: profile?.fullName ?? 'Unknown',
           weekStartDate: weekStart,
           totalHours: 0,
           status: 'MISSED',
@@ -108,16 +126,68 @@ export class TimesheetService {
     return rows.sort((a, b) => b.weekStartDate.getTime() - a.weekStartDate.getTime());
   }
 
+  async getEmployeeWeekDetail(
+    resourceId: number,
+    weekStartDate: Date,
+  ): Promise<EmployeeWeekTimesheetDetailDto> {
+    const profile = await this.resourceRepository.findProfileById(resourceId);
+    const timesheet = await this.timesheetRepository.findByResourceAndWeek(resourceId, weekStartDate);
+    const allocations = await this.getAllocationsForWeek(resourceId, weekStartDate);
+
+    if (!timesheet) {
+      const weekIsComplete = !this.isCurrentWeek(weekStartDate) && !isFutureDate(weekStartDate);
+      return {
+        employeeName: profile?.fullName ?? 'Unknown',
+        weekStartDate: formatDate(weekStartDate),
+        status: weekIsComplete && allocations.length > 0 ? 'MISSED' : 'SUBMITTED',
+        entries: [],
+        totalHours: 0,
+      };
+    }
+
+    if (timesheet.status === 'MISSED') {
+      return {
+        employeeName: profile?.fullName ?? 'Unknown',
+        weekStartDate: formatDate(weekStartDate),
+        status: 'MISSED',
+        entries: [],
+        totalHours: 0,
+      };
+    }
+
+    const rawEntries = await this.entryRepository.findByTimesheetId(timesheet.id);
+    const entries = await Promise.all(
+      rawEntries.map(async (entry) => {
+        const project = await this.projectRepository.findById(entry.projectId);
+        const tags = await this.tagRepository.findByTimesheetEntryId(entry.id);
+        return {
+          projectId: entry.projectId,
+          projectName: project?.name ?? 'Unknown',
+          hours: entry.hours,
+          activityTags: tags.map((t) => t.tagName),
+        };
+      }),
+    );
+
+    return {
+      employeeName: profile?.fullName ?? 'Unknown',
+      weekStartDate: formatDate(weekStartDate),
+      status: 'SUBMITTED',
+      entries,
+      totalHours: entries.reduce((sum, e) => sum + e.hours, 0),
+    };
+  }
+
   async getTeamTimesheets(managerId: number, weekStartDate: Date): Promise<TeamTimesheetRowDto[]> {
-    const employees = await this.employeeRepository.findByManagerId(managerId);
+    const resources = await this.resourceRepository.findByManagerId(managerId);
     const rows: TeamTimesheetRowDto[] = [];
     const weekIsComplete = !this.isCurrentWeek(weekStartDate) && !isFutureDate(weekStartDate);
 
-    for (const employee of employees) {
-      const allocations = await this.getAllocationsForWeek(employee.id, weekStartDate);
+    for (const resource of resources) {
+      const allocations = await this.getAllocationsForWeek(resource.id, weekStartDate);
       if (allocations.length === 0) continue;
 
-      const timesheet = await this.timesheetRepository.findByEmployeeAndWeek(employee.id, weekStartDate);
+      const timesheet = await this.timesheetRepository.findByResourceAndWeek(resource.id, weekStartDate);
       const entries = timesheet ? await this.entryRepository.findByTimesheetId(timesheet.id) : [];
 
       for (const allocation of allocations) {
@@ -126,8 +196,8 @@ export class TimesheetService {
 
         if (entry) {
           rows.push({
-            employeeId: employee.id,
-            employeeName: employee.name,
+            employeeId: resource.id,
+            employeeName: resource.fullName,
             projectId: allocation.projectId,
             projectName: project?.name ?? 'Unknown',
             hours: entry.hours,
@@ -135,8 +205,8 @@ export class TimesheetService {
           });
         } else if (weekIsComplete) {
           rows.push({
-            employeeId: employee.id,
-            employeeName: employee.name,
+            employeeId: resource.id,
+            employeeName: resource.fullName,
             projectId: allocation.projectId,
             projectName: project?.name ?? 'Unknown',
             hours: 0,
@@ -149,23 +219,49 @@ export class TimesheetService {
     return rows.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
   }
 
-  async hasMissedCurrentWeek(employeeId: number): Promise<{ hasMissed: boolean; weekStartDate: string | null }> {
-    const lastWeekStart = getWeekStartDate(new Date());
-    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+  async getSubmitContext(resourceId: number, weekStartDate: Date): Promise<SubmitTimesheetContextDto> {
+    const config = await this.configRepository.getConfig();
+    const profile = await this.resourceRepository.findProfileById(resourceId);
+    const weekAllocations = await this.getAllocationsForWeek(resourceId, weekStartDate);
 
-    const hadAllocation = await this.hadActiveAllocationDuringWeek(employeeId, lastWeekStart);
-    if (!hadAllocation) {
-      return { hasMissed: false, weekStartDate: null };
-    }
+    const allocations = await Promise.all(
+      weekAllocations.map(async (allocation) => {
+        const project = await this.projectRepository.findById(allocation.projectId);
+        const maxHours = Math.floor(
+          (allocation.utilisationPercent / MAX_UTILISATION_PERCENT) * config.maxWeeklyHours,
+        );
+        return {
+          projectId: allocation.projectId,
+          projectName: project?.name ?? 'Unknown',
+          utilisationPercent: allocation.utilisationPercent,
+          maxHours,
+        };
+      }),
+    );
 
-    const submitted = await this.timesheetRepository.findByEmployeeAndWeek(employeeId, lastWeekStart);
     return {
-      hasMissed: submitted === null,
-      weekStartDate: submitted === null ? formatDate(lastWeekStart) : null,
+      employeeName: profile?.fullName ?? 'Unknown',
+      weekStartDate: formatDate(weekStartDate),
+      maxWeeklyHours: config.maxWeeklyHours,
+      allocations,
     };
   }
 
-  // ── Private validation helpers ─────────────────────────────────────────────
+  async hasMissedCurrentWeek(resourceId: number): Promise<MissedTimesheetCheckDto> {
+    const lastWeekStart = getWeekStartDate(new Date());
+    lastWeekStart.setDate(lastWeekStart.getDate() - DAYS_IN_WEEK);
+
+    const hadAllocation = await this.hadActiveAllocationDuringWeek(resourceId, lastWeekStart);
+    if (!hadAllocation) {
+      return { hasMissedLastWeek: false, missedWeekStartDate: null };
+    }
+
+    const submitted = await this.timesheetRepository.findByResourceAndWeek(resourceId, lastWeekStart);
+    return {
+      hasMissedLastWeek: submitted === null,
+      missedWeekStartDate: submitted === null ? formatDate(lastWeekStart) : null,
+    };
+  }
 
   private assertNotFutureWeek(weekStartDate: Date): void {
     if (isFutureDate(weekStartDate)) {
@@ -173,8 +269,8 @@ export class TimesheetService {
     }
   }
 
-  private async assertNoDuplicateSubmission(employeeId: number, weekStartDate: Date): Promise<void> {
-    const existing = await this.timesheetRepository.findByEmployeeAndWeek(employeeId, weekStartDate);
+  private async assertNoDuplicateSubmission(resourceId: number, weekStartDate: Date): Promise<void> {
+    const existing = await this.timesheetRepository.findByResourceAndWeek(resourceId, weekStartDate);
     if (existing) {
       throw AppError.conflict('A timesheet for this week has already been submitted.');
     }
@@ -193,17 +289,17 @@ export class TimesheetService {
     return formatDate(weekStartDate) === formatDate(currentWeekStart);
   }
 
-  private async hadActiveAllocationDuringWeek(employeeId: number, weekStart: Date): Promise<boolean> {
+  private async hadActiveAllocationDuringWeek(resourceId: number, weekStart: Date): Promise<boolean> {
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const utilisation = await this.allocationRepository.sumUtilisationInPeriod(employeeId, weekStart, weekEnd);
+    weekEnd.setDate(weekEnd.getDate() + DAYS_IN_WEEK - 1);
+    const utilisation = await this.allocationRepository.sumUtilisationInPeriod(resourceId, weekStart, weekEnd);
     return utilisation > 0;
   }
 
-  private async getAllocationsForWeek(employeeId: number, weekStart: Date) {
+  private async getAllocationsForWeek(resourceId: number, weekStart: Date) {
     const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const allActive = await this.allocationRepository.findActiveByEmployee(employeeId);
+    weekEnd.setDate(weekEnd.getDate() + DAYS_IN_WEEK - 1);
+    const allActive = await this.allocationRepository.findActiveByResource(resourceId);
     return allActive.filter((a) => a.fromDate <= weekEnd && a.toDate >= weekStart);
   }
 }

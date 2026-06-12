@@ -1,63 +1,87 @@
+import { getSession } from '../../utils/session';
 import { employeeApi } from '../../apiClient/employeeApi';
-import { printHeader, printSuccess, printError, printDivider } from '../../utils/consoleUi';
-import { promptDate, promptNumber, multiSelect, confirm } from '../../utils/inputHelpers';
+import { ACTIVITY_TAG_OPTIONS } from '../../constants';
+import { TimesheetEntry } from '../../types/employee';
+import {
+  printHeader,
+  printSuccess,
+  printError,
+  printDivider,
+  printInfo,
+} from '../../utils/consoleUi';
+import { promptWeekStartDate, promptNumber, multiSelect, promptText } from '../../utils/inputHelpers';
+import chalk from 'chalk';
 
-const ACTIVITY_TAGS = [
-  'Backend API Development',
-  'Microservices / Architecture',
-  'Database Design & Queries',
-  'WebSocket / Real-time Features',
-  'Frontend Development',
-  'Code Review / Mentoring',
-  'Bug Fixing',
-  'DevOps / Deployment',
-  'Testing & QA',
-  'Documentation',
-];
-
-/** Screen 5.1 — Submit Timesheet */
 export async function submitTimesheetScreen(): Promise<void> {
   printHeader('SUBMIT TIMESHEET');
   console.log();
 
   try {
-    const allocations = await employeeApi.getMyAllocations() as Array<{
-      projectId: number; projectName: string; utilisationPercent: number;
-    }>;
+    const session = getSession();
+    printInfo(`Employee: ${session.fullName}`);
 
-    if (allocations.length === 0) {
-      printError('You have no active project allocations. You cannot submit a timesheet.');
+    const weekStartDate = await promptWeekStartDate('Week Start');
+    const context = await employeeApi.getSubmitContext(weekStartDate);
+
+    if (context.allocations.length === 0) {
+      printError('You have no active project allocations for this week.');
       return;
     }
 
-    const weekStartDate = await promptDate('Week Start Date (Monday, DD-MM-YYYY):');
-    
-    const entries: Array<{ projectId: number; hours: number; activityTags: string[] }> = [];
+    printInfo(`Week Start: ${context.weekStartDate}`);
+    console.log(chalk.dim('\n  Checking your active allocations for this week...\n'));
 
-    console.log('\n  Enter hours for your allocated projects:\n');
-    for (const alloc of allocations) {
-      const hours = await promptNumber(`Hours for '${alloc.projectName}' (max 40):`, 0, 40);
-      if (hours > 0) {
-        const activityTags = await multiSelect(`Select activities for '${alloc.projectName}':`, ACTIVITY_TAGS);
-        entries.push({ projectId: alloc.projectId, hours, activityTags });
-      }
+    const entries: TimesheetEntry[] = [];
+    const totalProjects = context.allocations.length;
+
+    for (let i = 0; i < totalProjects; i++) {
+      const allocation = context.allocations[i];
+      printDivider();
+      console.log(chalk.cyan.bold(`  PROJECT ${i + 1} OF ${totalProjects} — ${allocation.projectName}`));
+      printInfo(`Allocation: ${allocation.utilisationPercent}%  |  Expected: ${allocation.maxHours} hrs max`);
+      printDivider();
+
+      const hours = await promptNumber('Hours worked this week:', 0, allocation.maxHours);
+      if (hours === 0) continue;
+
+      const activityTags = await multiSelect('What did you work on? Select activity tags:', [...ACTIVITY_TAG_OPTIONS]);
+      entries.push({ projectId: allocation.projectId, hours, activityTags });
     }
 
     if (entries.length === 0) {
-      console.log('  No hours logged. Timesheet not submitted.\n');
+      printError('No hours logged. Timesheet not submitted.');
       return;
     }
 
     const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
+    const withinLimit = totalHours <= context.maxWeeklyHours;
+
+    console.log(chalk.bold('\n  SUMMARY'));
+    for (const entry of entries) {
+      const project = context.allocations.find((a) => a.projectId === entry.projectId)!;
+      console.log(`  ${project.projectName.padEnd(16)} ${String(entry.hours).padStart(2)} hrs    [${entry.activityTags.join(', ')}]`);
+    }
+    console.log(`  ${'─'.repeat(44)}`);
+    const statusLabel = withinLimit
+      ? chalk.green(`✓`)
+      : chalk.red(`✗ over limit`);
+    console.log(`  Total           ${totalHours} hrs / ${context.maxWeeklyHours} hrs max   ${statusLabel}\n`);
+
+    if (!withinLimit) {
+      printError(`Total hours exceed the maximum of ${context.maxWeeklyHours} hrs/week.`);
+      return;
+    }
+
     printDivider();
-    const ok = await confirm(`Submit timesheet for ${totalHours} total hours?`);
-    if (!ok) {
+    console.log('\n  [S] Submit Timesheet     [B] Back\n');
+    const action = (await promptText('Action')).toUpperCase();
+    if (action !== 'S') {
       console.log('  Cancelled.\n');
       return;
     }
 
     await employeeApi.submitTimesheet({ weekStartDate, entries });
-    printSuccess('Timesheet submitted successfully.');
+    printSuccess('Timesheet submitted successfully. Status: SUBMITTED');
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to submit timesheet.');
   }

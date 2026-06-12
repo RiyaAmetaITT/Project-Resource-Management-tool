@@ -1,7 +1,7 @@
 export interface Timesheet {
   id: number;
-  employeeId: number;
+  resourceId: number;
   weekStartDate: Date;
-  status: 'SUBMITTED';
+  status: 'SUBMITTED' | 'MISSED';
   createdAt: Date;
 }

@@ -1,10 +1,14 @@
 import { User } from '../../../server/src/models/User';
-import { Employee } from '../../../server/src/models/Employee';
+import { ResourceProfile } from '../../../server/src/models/Resource';
 import { Project } from '../../../server/src/models/Project';
 import { Allocation } from '../../../server/src/models/Allocation';
 import { SystemConfig } from '../../../server/src/models/SystemConfig';
-import { Role, EmployeeStatus, ProjectStatus, LlmProvider } from '../../../server/src/types/enums';
-import { DEFAULT_MAX_WEEKLY_HOURS, DEFAULT_SCHEDULER_INTERVAL_HRS } from '../../../server/src/constants';
+import { Role, ResourceStatus, ProjectStatus, LlmProvider } from '../../../server/src/types/enums';
+import {
+  DEFAULT_MAX_WEEKLY_HOURS,
+  DEFAULT_SCHEDULER_INTERVAL_HRS,
+  DEFAULT_LLM_MODEL,
+} from '../../../server/src/constants';
 
 /** Creates a jest mock object where every method is jest.fn(). */
 export function createMockRepo<T extends object>(): jest.Mocked<T> {
@@ -22,11 +26,15 @@ export function createMockRepo<T extends object>(): jest.Mocked<T> {
 export function makeUser(overrides: Partial<User> = {}): User {
   return {
     id: 1,
+    roleId: 3,
+    role: Role.EMPLOYEE,
+    managerId: 10,
     username: 'testuser',
     email: 'test@example.com',
     fullName: 'Test User',
     passwordHash: '$2a$12$hashedpasswordplaceholder',
-    role: Role.EMPLOYEE,
+    department: 'Engineering',
+    designation: 'Developer',
     forcePasswordChange: false,
     isActive: true,
     createdAt: new Date(),
@@ -34,22 +42,25 @@ export function makeUser(overrides: Partial<User> = {}): User {
   };
 }
 
-export function makeEmployee(overrides: Partial<Employee> = {}): Employee {
+export function makeResourceProfile(overrides: Partial<ResourceProfile> = {}): ResourceProfile {
   return {
     id: 1,
     userId: 2,
     managerId: 10,
-    name: 'Jane Employee',
+    fullName: 'Jane Employee',
     email: 'jane@example.com',
     department: 'Engineering',
     designation: 'Developer',
-    status: EmployeeStatus.BENCH,
+    status: ResourceStatus.BENCH,
     totalUtilisation: 0,
     isActive: true,
     createdAt: new Date(),
     ...overrides,
   };
 }
+
+/** @deprecated Use makeResourceProfile */
+export const makeEmployee = makeResourceProfile;
 
 export function makeProject(overrides: Partial<Project> = {}): Project {
   return {
@@ -70,7 +81,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
 export function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
   return {
     id: 1,
-    employeeId: 1,
+    resourceId: 1,
     projectId: 1,
     utilisationPercent: 50,
     fromDate: new Date('2025-01-01'),
@@ -85,7 +96,9 @@ export function makeSystemConfig(overrides: Partial<SystemConfig> = {}): SystemC
     id: 1,
     maxWeeklyHours: DEFAULT_MAX_WEEKLY_HOURS,
     schedulerIntervalHrs: DEFAULT_SCHEDULER_INTERVAL_HRS,
-    llmProvider: LlmProvider.GEMINI,
+    llmProvider: LlmProvider.GEMMA,
+    llmHost: 'https://api.example.com/v1',
+    llmModel: DEFAULT_LLM_MODEL,
     llmApiKey: 'test-api-key',
     ...overrides,
   };

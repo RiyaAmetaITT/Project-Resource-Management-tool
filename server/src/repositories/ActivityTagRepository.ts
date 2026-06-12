@@ -39,16 +39,16 @@ export class ActivityTagRepository implements IRepository<ActivityTag> {
     return rows;
   }
 
-  /** Returns all unique tags an employee used in the last N weeks — feeds AI skill matching. */
-  async findRecentTagsByEmployee(employeeId: number, weeksBack: number): Promise<string[]> {
+  /** Returns all unique tags a resource used in the last N weeks — feeds AI skill matching. */
+  async findRecentTagsByResource(resourceId: number, weeksBack: number): Promise<string[]> {
     const [rows] = await pool.query<TagRow[]>(
       `SELECT DISTINCT at.tag_name
        FROM activity_tags at
        INNER JOIN timesheet_entries te ON te.id = at.timesheet_entry_id
        INNER JOIN timesheets t         ON t.id  = te.timesheet_id
-       WHERE t.employee_id = ?
+       WHERE t.resource_id = ?
          AND t.week_start_date >= DATE_SUB(CURDATE(), INTERVAL ? WEEK)`,
-      [employeeId, weeksBack],
+      [resourceId, weeksBack],
     );
     return rows.map((row) => row.tagName);
   }

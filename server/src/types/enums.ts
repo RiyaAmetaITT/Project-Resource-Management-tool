@@ -5,11 +5,14 @@ export enum Role {
   EMPLOYEE = 'EMPLOYEE',
 }
 
-/** Employee allocation status — computed by the scheduler. */
-export enum EmployeeStatus {
+/** Resource allocation status — computed by the scheduler. */
+export enum ResourceStatus {
   BENCH = 'BENCH',
   ALLOCATED = 'ALLOCATED',
 }
+
+/** @deprecated Use ResourceStatus */
+export const EmployeeStatus = ResourceStatus;
 
 /** Project lifecycle status. */
 export enum ProjectStatus {
@@ -57,6 +60,5 @@ export enum SkillCategory {
 
 /** Supported LLM providers. */
 export enum LlmProvider {
-  GEMINI = 'gemini',
-  GROQ = 'groq',
+  GEMMA = 'gemma',
 }

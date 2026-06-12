@@ -36,3 +36,39 @@ export interface SkillMatchRequestDto {
 export interface RiskSummaryRequestDto {
   projectId: number;
 }
+
+export interface TeamBuildRequestDto {
+  requirement: string;
+}
+
+export interface WeekAllocationDto {
+  projectId: number;
+  projectName: string;
+  utilisationPercent: number;
+  maxHours: number;
+}
+
+export interface SubmitTimesheetContextDto {
+  employeeName: string;
+  weekStartDate: string;
+  maxWeeklyHours: number;
+  allocations: WeekAllocationDto[];
+}
+
+export interface MissedTimesheetCheckDto {
+  hasMissedLastWeek: boolean;
+  missedWeekStartDate: string | null;
+}
+
+export interface EmployeeWeekTimesheetDetailDto {
+  employeeName: string;
+  weekStartDate: string;
+  status: 'SUBMITTED' | 'MISSED';
+  entries: Array<{
+    projectId: number;
+    projectName: string;
+    hours: number;
+    activityTags: string[];
+  }>;
+  totalHours: number;
+}

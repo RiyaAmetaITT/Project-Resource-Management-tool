@@ -2,14 +2,11 @@ import { adminApi } from '../../../apiClient/adminApi';
 import { printHeader, printTable, printSuccess, printError, printDivider } from '../../../utils/consoleUi';
 import { promptNumber, promptText, confirm } from '../../../utils/inputHelpers';
 
-interface UserRow { id: number; username: string; fullName: string; role: string; isActive: boolean; }
-
-/** Screen 3.4.2 — View All Users */
 export async function viewUsersScreen(): Promise<void> {
   printHeader('ALL USERS');
   console.log();
   try {
-    const users = await adminApi.getAllUsers() as UserRow[];
+    const users = await adminApi.getAllUsers();
     printTable(
       ['ID', 'Username', 'Role', 'Status'],
       users.map((u) => [u.id, u.username, u.role, u.isActive ? 'Active' : 'Inactive']),

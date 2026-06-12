@@ -16,6 +16,14 @@ export function parseDate(ddmmyyyy: string): Date {
   return date;
 }
 
+/** Resolves a week-start date from an optional query value, defaulting to the current week. */
+export function resolveWeekStartDate(weekQuery: unknown): Date {
+  if (typeof weekQuery === 'string' && weekQuery.trim()) {
+    return parseDate(weekQuery);
+  }
+  return getWeekStartDate();
+}
+
 /** Returns the most recent Monday at midnight for a given date. */
 export function getWeekStartDate(date: Date = new Date()): Date {
   const day = date.getDay();

@@ -1,7 +1,6 @@
 import { AIServiceFactory } from '../../../../server/src/services/ai/AIServiceFactory';
 import { SystemConfigRepository } from '../../../../server/src/repositories/SystemConfigRepository';
-import { GeminiAIService } from '../../../../server/src/services/ai/GeminiAIService';
-import { GroqAIService } from '../../../../server/src/services/ai/GroqAIService';
+import { GemmaAIService } from '../../../../server/src/services/ai/GemmaAIService';
 import { createMockRepo, makeSystemConfig } from '../../helpers/repositoryMocks';
 import { LlmProvider } from '../../../../server/src/types/enums';
 
@@ -14,16 +13,18 @@ describe('AIServiceFactory', () => {
     factory = new AIServiceFactory(configRepo);
   });
 
-  it('returns GeminiAIService for gemini provider', async () => {
-    configRepo.getConfig.mockResolvedValue(makeSystemConfig({ llmProvider: LlmProvider.GEMINI }));
+  it('returns GemmaAIService for gemma provider', async () => {
+    configRepo.getConfig.mockResolvedValue(makeSystemConfig({ llmProvider: LlmProvider.GEMMA }));
     const service = await factory.create();
-    expect(service).toBeInstanceOf(GeminiAIService);
+    expect(service).toBeInstanceOf(GemmaAIService);
   });
 
-  it('returns GroqAIService for groq provider', async () => {
-    configRepo.getConfig.mockResolvedValue(makeSystemConfig({ llmProvider: LlmProvider.GROQ }));
+  it('returns GemmaAIService for legacy gemini provider', async () => {
+    configRepo.getConfig.mockResolvedValue(
+      makeSystemConfig({ llmProvider: 'gemini' as LlmProvider }),
+    );
     const service = await factory.create();
-    expect(service).toBeInstanceOf(GroqAIService);
+    expect(service).toBeInstanceOf(GemmaAIService);
   });
 
   it('throws for unsupported provider', async () => {
@@ -31,5 +32,21 @@ describe('AIServiceFactory', () => {
       makeSystemConfig({ llmProvider: 'unknown' as LlmProvider }),
     );
     await expect(factory.create()).rejects.toThrow(/Unsupported LLM provider/);
+  });
+
+  it('throws when LLM host is missing', async () => {
+    configRepo.getConfig.mockResolvedValue(makeSystemConfig({ llmHost: '  ' }));
+    await expect(factory.create()).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('LLM host'),
+    });
+  });
+
+  it('throws when LLM API key is missing', async () => {
+    configRepo.getConfig.mockResolvedValue(makeSystemConfig({ llmApiKey: '' }));
+    await expect(factory.create()).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('API key'),
+    });
   });
 });

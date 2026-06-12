@@ -16,3 +16,10 @@ export interface AllocationResponseDto {
   fromDate: Date;
   toDate: Date;
 }
+
+export interface AllocationValidationDto {
+  employeeName: string;
+  currentTotal: number;
+  newTotal: number;
+  isValid: boolean;
+}

@@ -10,7 +10,6 @@ const ROLE_MAP: Record<string, Role> = {
   Employee: Role.EMPLOYEE,
 };
 
-/** Screen 3.4.1 — Create User Account */
 export async function createUserScreen(): Promise<void> {
   printHeader('CREATE USER ACCOUNT');
   console.log();
@@ -19,6 +18,11 @@ export async function createUserScreen(): Promise<void> {
     const email = await promptText('Email:');
     const username = await promptText('Username:');
     const temporaryPassword = await promptPassword('Temporary Password:');
+
+    if (!fullName || !email || !username || !temporaryPassword) {
+      printError('All fields are mandatory.');
+      return;
+    }
     const roleLabel = await selectFromMenu('Role:', ROLE_OPTIONS);
     const role = ROLE_MAP[roleLabel];
 

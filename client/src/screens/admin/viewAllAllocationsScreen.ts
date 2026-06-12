@@ -1,23 +1,15 @@
 import { adminApi } from '../../apiClient/adminApi';
+import { AllocationSummary } from '../../types/admin';
 import { printHeader, printTable, printError, printDivider, printInfo } from '../../utils/consoleUi';
 import { promptText, selectFromMenu } from '../../utils/inputHelpers';
 
-interface AllocationRow {
-  employeeName: string;
-  projectName: string;
-  utilisationPercent: number;
-  fromDate: string;
-  toDate: string;
-}
-
-/** Screen 3.3 — View All Allocations (Admin) */
 export async function viewAllAllocationsScreen(): Promise<void> {
   let employeeFilter: string | null = null;
   let projectFilter: string | null = null;
 
-  let activeAllocations: AllocationRow[];
+  let activeAllocations: AllocationSummary[];
   try {
-    const allocations = await adminApi.getAllAllocations() as AllocationRow[];
+    const allocations = await adminApi.getAllAllocations();
     activeAllocations = allocations.filter((a) => isActiveAllocation(a.toDate));
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to load allocations.');
@@ -84,10 +76,10 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 function applyAllocationFilters(
-  allocations: AllocationRow[],
+  allocations: AllocationSummary[],
   employeeFilter: string | null,
   projectFilter: string | null,
-): AllocationRow[] {
+): AllocationSummary[] {
   return allocations.filter((a) => {
     if (employeeFilter && a.employeeName !== employeeFilter) return false;
     if (projectFilter && a.projectName !== projectFilter) return false;
@@ -96,7 +88,7 @@ function applyAllocationFilters(
 }
 
 async function promptAllocationFilters(
-  allAllocations: AllocationRow[],
+  allAllocations: AllocationSummary[],
   currentEmployee: string | null,
   currentProject: string | null,
 ): Promise<{ employeeFilter: string | null; projectFilter: string | null }> {

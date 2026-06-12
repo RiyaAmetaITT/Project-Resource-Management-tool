@@ -2,10 +2,6 @@ import { adminApi } from '../../../apiClient/adminApi';
 import { printHeader, printDivider, printSuccess, printError } from '../../../utils/consoleUi';
 import { promptNumber } from '../../../utils/inputHelpers';
 
-/**
- * Screen 3.1.4 — Assign Manager
- * Links an employee record to a manager user account.
- */
 export async function assignManagerScreen(): Promise<void> {
   printHeader('ASSIGN MANAGER');
   console.log();

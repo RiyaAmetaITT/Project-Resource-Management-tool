@@ -1,4 +1,4 @@
-import { EmployeeStatus } from '../types/enums';
+import { ResourceStatus } from '../types/enums';
 
 export interface UpdateEmployeeDto {
   name?: string;
@@ -21,7 +21,7 @@ export interface EmployeeResponseDto {
   email: string;
   department: string;
   designation: string;
-  status: EmployeeStatus;
+  status: ResourceStatus;
   totalUtilisation: number;
   isActive: boolean;
 }

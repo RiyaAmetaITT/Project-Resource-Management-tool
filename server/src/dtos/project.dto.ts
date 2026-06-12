@@ -3,8 +3,8 @@ import { ProjectStatus, HealthStatus } from '../types/enums';
 export interface CreateProjectDto {
   name: string;
   description: string;
-  startDate: string;     // DD-MM-YYYY from console
-  endDate: string;       // DD-MM-YYYY from console
+  startDate: string;
+  endDate: string;
   totalStoryPoints?: number;
   status: ProjectStatus;
   managerId: number;
@@ -16,7 +16,7 @@ export interface UpdateProjectDto {
   startDate?: string;
   endDate?: string;
   totalStoryPoints?: number;
-  status?: ProjectStatus;  // Now includes COMPLETED
+  status?: ProjectStatus;
   managerId?: number;
 }
 
@@ -27,7 +27,9 @@ export interface ProjectResponseDto {
   startDate: Date;
   endDate: Date;
   totalStoryPoints: number;
+  completedStoryPoints: number;
   status: ProjectStatus;
   healthStatus: HealthStatus;
   managerId: number;
+  managerName: string;
 }
