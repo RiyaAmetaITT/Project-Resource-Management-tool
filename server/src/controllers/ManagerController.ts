@@ -97,6 +97,23 @@ export class ManagerController {
     } catch (err) { next(err); }
   };
 
+  getFrozenEmployees = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const employees = await this.managerService.getFrozenEmployees(req.user!.userId);
+      res.status(200).json({ success: true, data: employees });
+    } catch (err) { next(err); }
+  };
+
+  restoreTimesheetAccess = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.managerService.restoreTimesheetAccess(
+        req.user!.userId,
+        parseRouteId(req.params.id, 'employee ID'),
+      );
+      res.status(200).json({ success: true, message: 'Timesheet access restored.' });
+    } catch (err) { next(err); }
+  };
+
   aiSkillMatch = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { projectId, requirement } = req.body as SkillMatchRequestDto;

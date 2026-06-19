@@ -25,9 +25,16 @@ import {
   STORY_POINTS_BEHIND_ATTENTION_GAP,
   STORY_POINTS_BEHIND_CRITICAL_GAP,
 } from '../constants';
+import { TimesheetNotificationService } from './TimesheetNotificationService';
+import { ProjectHealthNotificationService } from './ProjectHealthNotificationService';
+import { EmailService } from './EmailService';
+import { UserRepository } from '../repositories/UserRepository';
+import { createManagerService } from '../bootstrap/createManagerService';
 
 export class SchedulerService {
   private scheduledTask: cron.ScheduledTask | null = null;
+  private readonly timesheetNotificationService: TimesheetNotificationService;
+  private readonly projectHealthNotificationService: ProjectHealthNotificationService;
 
   constructor(
     private readonly allocationRepository: AllocationRepository,
@@ -37,7 +44,24 @@ export class SchedulerService {
     private readonly configRepository: SystemConfigRepository,
     private readonly timesheetRepository: TimesheetRepository,
     private readonly timesheetEntryRepository: TimesheetEntryRepository,
-  ) {}
+    timesheetNotificationService?: TimesheetNotificationService,
+    projectHealthNotificationService?: ProjectHealthNotificationService,
+  ) {
+    this.timesheetNotificationService = timesheetNotificationService ?? new TimesheetNotificationService(
+      allocationRepository,
+      resourceRepository,
+      timesheetRepository,
+      new UserRepository(),
+      new EmailService(),
+    );
+    this.projectHealthNotificationService = projectHealthNotificationService ?? new ProjectHealthNotificationService(
+      projectRepository,
+      milestoneRepository,
+      new UserRepository(),
+      new EmailService(),
+      createManagerService(),
+    );
+  }
 
   async start(): Promise<void> {
     const config = await this.configRepository.getConfig();
@@ -62,6 +86,7 @@ export class SchedulerService {
   async runAllChecks(): Promise<void> {
     await this.recomputeAllResourceUtilisations();
     await this.flagMissedTimesheets();
+    await this.timesheetNotificationService.processNotifications();
     await this.flagOverdueMilestones();
     await this.computeAllProjectHealthStatuses();
   }
@@ -130,6 +155,19 @@ export class SchedulerService {
         config.maxWeeklyHours,
       );
       await this.projectRepository.updateHealthStatus(project.id, health);
+      await this.handleProjectHealthNotification(project, health);
+    }
+  }
+
+  private async handleProjectHealthNotification(project: Project, health: HealthStatus): Promise<void> {
+    if (health === HealthStatus.AT_RISK && !project.atRiskNotifiedAt) {
+      await this.projectHealthNotificationService.notifyAtRisk(project.id, health);
+      await this.projectRepository.markAtRiskNotified(project.id);
+      return;
+    }
+
+    if (health !== HealthStatus.AT_RISK && project.atRiskNotifiedAt) {
+      await this.projectRepository.clearAtRiskNotification(project.id);
     }
   }
 

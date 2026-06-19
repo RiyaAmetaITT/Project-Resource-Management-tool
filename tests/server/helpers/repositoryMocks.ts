@@ -53,6 +53,8 @@ export function makeResourceProfile(overrides: Partial<ResourceProfile> = {}): R
     designation: 'Developer',
     status: ResourceStatus.BENCH,
     totalUtilisation: 0,
+    timesheetAccessFrozen: false,
+    timesheetFrozenWeekStart: null,
     isActive: true,
     createdAt: new Date(),
     ...overrides,
@@ -73,6 +75,7 @@ export function makeProject(overrides: Partial<Project> = {}): Project {
     status: ProjectStatus.ACTIVE,
     managerId: 10,
     healthStatus: 'ON_TRACK' as Project['healthStatus'],
+    atRiskNotifiedAt: null,
     createdAt: new Date(),
     ...overrides,
   };

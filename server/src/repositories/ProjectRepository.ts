@@ -18,6 +18,7 @@ export class ProjectRepository implements IRepository<Project> {
       status: row.status as Project['status'],
       healthStatus: row.health_status as Project['healthStatus'],
       managerId: row.manager_id as number,
+      atRiskNotifiedAt: (row.at_risk_notified_at as Date | null) ?? null,
       createdAt: row.created_at as Date,
     };
   }
@@ -88,5 +89,16 @@ export class ProjectRepository implements IRepository<Project> {
 
   async updateHealthStatus(id: number, healthStatus: HealthStatus): Promise<void> {
     await pool.query('UPDATE projects SET health_status = ? WHERE id = ?', [healthStatus, id]);
+  }
+
+  async markAtRiskNotified(id: number): Promise<void> {
+    await pool.query(
+      'UPDATE projects SET at_risk_notified_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [id],
+    );
+  }
+
+  async clearAtRiskNotification(id: number): Promise<void> {
+    await pool.query('UPDATE projects SET at_risk_notified_at = NULL WHERE id = ?', [id]);
   }
 }

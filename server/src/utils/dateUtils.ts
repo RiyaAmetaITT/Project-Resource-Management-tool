@@ -48,3 +48,48 @@ export function formatDate(date: Date): string {
   const yyyy = date.getFullYear();
   return `${dd}-${mm}-${yyyy}`;
 }
+
+/** Returns a copy of the date at local midnight. */
+export function startOfDay(date: Date): Date {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+/** Returns true for Monday through Friday. */
+export function isWorkingDay(date: Date): boolean {
+  const day = date.getDay();
+  return day >= 1 && day <= 5;
+}
+
+/** Returns true when both dates fall on the same calendar day. */
+export function isSameDay(a: Date, b: Date): boolean {
+  return startOfDay(a).getTime() === startOfDay(b).getTime();
+}
+
+/** Adds calendar days to a date (midnight-normalised). */
+export function addDays(date: Date, days: number): Date {
+  const copy = startOfDay(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+/** Returns the Monday of the most recently completed work week. */
+export function getLastCompletedWeekStart(date: Date = new Date()): Date {
+  const currentWeekStart = getWeekStartDate(date);
+  return addDays(currentWeekStart, -7);
+}
+
+/** Submission deadline for a week that starts on weekStart (Monday following that week). */
+export function getTimesheetSubmissionDeadline(weekStart: Date): Date {
+  return addDays(weekStart, 7);
+}
+
+/** First working day strictly after the given date. */
+export function getNextWorkingDay(date: Date): Date {
+  let next = addDays(date, 1);
+  while (!isWorkingDay(next)) {
+    next = addDays(next, 1);
+  }
+  return next;
+}

@@ -19,8 +19,13 @@ export async function employeeMenu(): Promise<void> {
   );
 
   try {
-    const { hasMissedLastWeek, missedWeekStartDate } = await employeeApi.checkMissedTimesheet();
-    if (hasMissedLastWeek && missedWeekStartDate) {
+    const { hasMissedLastWeek, missedWeekStartDate, timesheetAccessFrozen } =
+      await employeeApi.checkMissedTimesheet();
+    if (timesheetAccessFrozen) {
+      console.log(
+        chalk.red('\n  🔒  Your timesheet submission access is frozen. Contact your manager to restore access.'),
+      );
+    } else if (hasMissedLastWeek && missedWeekStartDate) {
       console.log(`\n  ⚠  Reminder: Timesheet for week ${missedWeekStartDate} has not been submitted.`);
     }
   } catch {

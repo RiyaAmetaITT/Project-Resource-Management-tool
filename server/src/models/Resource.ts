@@ -5,6 +5,8 @@ export interface Resource {
   userId: number;
   status: ResourceStatus;
   totalUtilisation: number;
+  timesheetAccessFrozen: boolean;
+  timesheetFrozenWeekStart: Date | null;
   createdAt: Date;
 }
 

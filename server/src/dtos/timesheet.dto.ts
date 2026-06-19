@@ -52,12 +52,14 @@ export interface SubmitTimesheetContextDto {
   employeeName: string;
   weekStartDate: string;
   maxWeeklyHours: number;
+  timesheetAccessFrozen: boolean;
   allocations: WeekAllocationDto[];
 }
 
 export interface MissedTimesheetCheckDto {
   hasMissedLastWeek: boolean;
   missedWeekStartDate: string | null;
+  timesheetAccessFrozen: boolean;
 }
 
 export interface EmployeeWeekTimesheetDetailDto {

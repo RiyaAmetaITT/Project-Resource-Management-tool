@@ -7,6 +7,7 @@ import { ResourceStatus, Role } from '../types/enums';
 const PROFILE_SELECT = `
   SELECT
     res.id, res.user_id, res.status, res.total_utilisation, res.created_at, res.manager_id,
+    res.timesheet_access_frozen, res.timesheet_frozen_week_start,
     u.full_name, u.email, u.department, u.designation, u.is_active
   FROM resources res
   INNER JOIN users u ON u.id = res.user_id
@@ -19,6 +20,8 @@ export class ResourceRepository implements IRepository<Resource> {
       userId: row.user_id as number,
       status: row.status as Resource['status'],
       totalUtilisation: row.total_utilisation as number,
+      timesheetAccessFrozen: !!row.timesheet_access_frozen,
+      timesheetFrozenWeekStart: (row.timesheet_frozen_week_start as Date | null) ?? null,
       createdAt: row.created_at as Date,
     };
   }
@@ -131,5 +134,33 @@ export class ResourceRepository implements IRepository<Resource> {
       'UPDATE resources SET status = ?, total_utilisation = ? WHERE id = ?',
       [status, totalUtilisation, id],
     );
+  }
+
+  async setTimesheetFrozen(resourceId: number, weekStart: Date): Promise<void> {
+    await pool.query(
+      'UPDATE resources SET timesheet_access_frozen = TRUE, timesheet_frozen_week_start = ? WHERE id = ?',
+      [weekStart, resourceId],
+    );
+  }
+
+  async restoreTimesheetAccess(resourceId: number): Promise<void> {
+    await pool.query(
+      'UPDATE resources SET timesheet_access_frozen = FALSE, timesheet_frozen_week_start = NULL WHERE id = ?',
+      [resourceId],
+    );
+  }
+
+  async findFrozenByManagerId(managerUserId: number): Promise<ResourceProfile[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `${PROFILE_SELECT}
+       INNER JOIN roles r ON r.id = u.role_id
+       WHERE res.manager_id = ?
+         AND u.is_active = TRUE
+         AND r.name = ?
+         AND res.timesheet_access_frozen = TRUE
+       ORDER BY res.id`,
+      [managerUserId, Role.EMPLOYEE],
+    );
+    return rows.map((r) => this.mapProfile(r));
   }
 }

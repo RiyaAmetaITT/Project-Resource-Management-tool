@@ -109,3 +109,10 @@ export interface TeamBuildResponseDto {
   unfilled: TeamBuildUnfilledRoleDto[];
   benchSearched: number;
 }
+
+export interface FrozenEmployeeDto {
+  employeeId: number;
+  employeeName: string;
+  email: string;
+  frozenWeekStartDate: string;
+}

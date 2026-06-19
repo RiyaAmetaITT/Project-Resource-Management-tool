@@ -11,6 +11,7 @@ import {
   SkillMatchResult,
   TeamBuildResult,
   TeamTimesheetRow,
+  FrozenEmployee,
 } from '../types/manager';
 
 interface ApiDataResponse<T> {
@@ -52,6 +53,10 @@ export const managerApi = {
     getData('/manager/timesheets', { week }),
   getEmployeeTimesheetDetail: (employeeId: number, week?: string): Promise<EmployeeTimesheetDetail> =>
     getData('/manager/timesheets/detail', { employeeId, week }),
+  getFrozenEmployees: (): Promise<FrozenEmployee[]> =>
+    getData('/manager/timesheets/frozen-employees'),
+  restoreTimesheetAccess: (employeeId: number): Promise<void> =>
+    apiClient.put(`/manager/resources/employees/${employeeId}/restore-timesheet-access`),
 
   aiSkillMatch: (projectId: number, requirement: string): Promise<{ results: SkillMatchResult[] }> =>
     postData('/manager/ai/skill-match', { projectId, requirement }, AI_API_TIMEOUT_MS),

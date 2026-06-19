@@ -143,3 +143,10 @@ export interface TeamBuildResult {
   filled: TeamBuildFilledRole[];
   unfilled: TeamBuildUnfilledRole[];
 }
+
+export interface FrozenEmployee {
+  employeeId: number;
+  employeeName: string;
+  email: string;
+  frozenWeekStartDate: string;
+}

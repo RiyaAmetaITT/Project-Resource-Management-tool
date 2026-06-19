@@ -28,6 +28,7 @@ import {
   TeamBuildResponseDto,
   TeamBuildFilledRoleDto,
   TeamBuildUnfilledRoleDto,
+  FrozenEmployeeDto,
 } from '../dtos/manager.dto';
 import { TeamTimesheetRowDto, EmployeeWeekTimesheetDetailDto } from '../dtos/timesheet.dto';
 import { AppError } from '../errors/AppError';
@@ -154,6 +155,26 @@ export class ManagerService {
     return this.timesheetService.getEmployeeWeekDetail(employeeId, weekStartDate);
   }
 
+  async getFrozenEmployees(managerId: number): Promise<FrozenEmployeeDto[]> {
+    const frozen = await this.resourceRepository.findFrozenByManagerId(managerId);
+    return frozen.map((employee) => ({
+      employeeId: employee.id,
+      employeeName: employee.fullName,
+      email: employee.email,
+      frozenWeekStartDate: employee.timesheetFrozenWeekStart
+        ? formatDate(new Date(employee.timesheetFrozenWeekStart))
+        : 'Unknown',
+    }));
+  }
+
+  async restoreTimesheetAccess(managerId: number, employeeId: number): Promise<void> {
+    const profile = await this.assertTeamMember(managerId, employeeId);
+    if (!profile.timesheetAccessFrozen) {
+      throw AppError.badRequest('This employee does not have frozen timesheet access.');
+    }
+    await this.resourceRepository.restoreTimesheetAccess(employeeId);
+  }
+
   async performSkillMatch(
     managerId: number,
     projectId: number,
@@ -215,6 +236,10 @@ export class ManagerService {
 
   async performRiskSummary(managerId: number, projectId: number): Promise<string> {
     await this.allocationService.assertManagerOwnsProject(projectId, managerId);
+    return this.buildRiskSummaryForProject(projectId);
+  }
+
+  async buildRiskSummaryForProject(projectId: number): Promise<string> {
     const facts = await this.buildProjectFacts(projectId);
 
     try {
@@ -222,6 +247,41 @@ export class ManagerService {
       return await aiService.generateRiskSummary(facts);
     } catch {
       return this.buildFallbackRiskSummary(facts);
+    }
+  }
+
+  async findRiskReductionCandidates(projectId: number): Promise<SkillMatchResultDto[]> {
+    const facts = await this.buildProjectFacts(projectId);
+    const requirement = this.buildRiskReductionRequirement(facts);
+
+    const config = await this.configRepository.getConfig();
+    const employeeResources = await this.resourceRepository.findAllActiveEmployees();
+    const allCandidates = await this.buildCandidateSummaries(employeeResources);
+    const qualifiedCandidates = this.filterCandidatesByCapacity(
+      allCandidates,
+      config.maxWeeklyHours,
+      null,
+    );
+
+    if (qualifiedCandidates.length === 0) return [];
+
+    const resourcesByName = new Map(employeeResources.map((r) => [r.fullName, r]));
+
+    try {
+      const aiService = await this.aiServiceFactory.create();
+      const results = await aiService.generateSkillMatch(requirement, qualifiedCandidates);
+      const candidateNames = new Set(qualifiedCandidates.map((c) => c.name));
+      const validResults = results.filter((r) => candidateNames.has(r.name));
+
+      if (validResults.length === 0) {
+        return this.buildRuleBasedSkillSuggestions(qualifiedCandidates, resourcesByName).slice(0, 3);
+      }
+
+      return validResults
+        .slice(0, 3)
+        .map((r) => this.enrichSkillMatchResult(r, resourcesByName, qualifiedCandidates));
+    } catch {
+      return this.buildRuleBasedSkillSuggestions(qualifiedCandidates, resourcesByName).slice(0, 3);
     }
   }
 
@@ -763,6 +823,47 @@ export class ManagerService {
     const a = employeeSkill.toLowerCase().trim();
     const b = requiredSkill.toLowerCase().trim();
     return a.includes(b) || b.includes(a);
+  }
+
+  private buildRiskReductionRequirement(facts: ProjectFacts): string {
+    const parts: string[] = [];
+    const overdue = facts.milestones.filter((m) => m.isOverdue);
+
+    if (overdue.length > 0) {
+      parts.push(`Help deliver overdue milestones: ${overdue.map((m) => m.title).join(', ')}`);
+    }
+
+    const lowHours = facts.recentHoursSummary.filter(
+      (h) => h.expectedHours > 0 && h.loggedHours < h.expectedHours * LOW_HOURS_THRESHOLD_RATIO,
+    );
+    if (lowHours.length > 0) {
+      parts.push(
+        `Additional capacity to cover shortfall from ${lowHours.map((h) => h.employeeName).join(', ')}`,
+      );
+    }
+
+    if (parts.length === 0) {
+      return 'Available employees with relevant skills to help reduce project delivery risk';
+    }
+
+    return parts.join('. ');
+  }
+
+  private buildRuleBasedSkillSuggestions(
+    candidates: CandidateSummary[],
+    resourcesByName: Map<string, ResourceProfile>,
+  ): SkillMatchResultDto[] {
+    return candidates
+      .filter((c) => c.availablePercent > 0)
+      .sort((a, b) => b.availablePercent - a.availablePercent)
+      .slice(0, 3)
+      .map((c) => ({
+        employeeId: resourcesByName.get(c.name)?.id ?? 0,
+        name: c.name,
+        reason: `Available ${c.availablePercent}% with skills: ${c.skills.join(', ') || 'general'}`,
+        skillsMatch: c.skills.join(', '),
+        availability: `${c.availablePercent}% free`,
+      }));
   }
 
   private buildFallbackRiskSummary(facts: ProjectFacts): string {

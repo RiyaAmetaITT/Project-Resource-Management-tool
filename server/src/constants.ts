@@ -24,6 +24,8 @@ export const STORY_POINTS_BEHIND_ATTENTION_GAP = 0.2;
 export const STORY_POINTS_BEHIND_CRITICAL_GAP = 0.4;
 export const DAYS_IN_WEEK = 7;
 export const MISSED_TIMESHEET_HISTORY_WEEKS = 12;
+/** Days after week start when the previous week's timesheet is due (Monday after the week ends). */
+export const TIMESHEET_SUBMISSION_DEADLINE_OFFSET_DAYS = 7;
 
 export const ACTIVITY_TAG_OPTIONS = [
   'Backend API Development',

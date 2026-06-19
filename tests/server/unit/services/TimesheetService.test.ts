@@ -55,6 +55,7 @@ describe('TimesheetService', () => {
     };
 
     it('saves timesheet with entries and tags', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       timesheetRepo.findByResourceAndWeek.mockResolvedValue(null);
       allocationRepo.findActiveByResource.mockResolvedValue([
         makeAllocation({ projectId: 1, utilisationPercent: 50, fromDate: lastWeek, toDate: lastWeek }),
@@ -73,6 +74,7 @@ describe('TimesheetService', () => {
     });
 
     it('rejects duplicate submission', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       timesheetRepo.findByResourceAndWeek.mockResolvedValue({ id: 1 } as never);
       await expect(
         service.submitTimesheet(1, {
@@ -83,6 +85,7 @@ describe('TimesheetService', () => {
     });
 
     it('rejects hours exceeding weekly limit', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       timesheetRepo.findByResourceAndWeek.mockResolvedValue(null);
       await expect(
         service.submitTimesheet(1, {
@@ -93,6 +96,7 @@ describe('TimesheetService', () => {
     });
 
     it('rejects entry for unallocated project', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       timesheetRepo.findByResourceAndWeek.mockResolvedValue(null);
       allocationRepo.findActiveByResource.mockResolvedValue([]);
       await expect(
@@ -104,6 +108,7 @@ describe('TimesheetService', () => {
     });
 
     it('rejects hours exceeding project allocation cap', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       timesheetRepo.findByResourceAndWeek.mockResolvedValue(null);
       allocationRepo.findActiveByResource.mockResolvedValue([
         makeAllocation({ projectId: 1, utilisationPercent: 25, fromDate: lastWeek, toDate: lastWeek }),
@@ -114,6 +119,19 @@ describe('TimesheetService', () => {
           entries: [{ projectId: 1, hours: 15, activityTags: ['Dev'] }],
         }),
       ).rejects.toMatchObject({ statusCode: 400, message: expect.stringContaining('allocated max') });
+    });
+
+    it('rejects submission when timesheet access is frozen', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(
+        makeResourceProfile({ timesheetAccessFrozen: true }),
+      );
+
+      await expect(
+        service.submitTimesheet(1, {
+          weekStartDate: formatWeek(lastWeek),
+          entries: [{ projectId: 1, hours: 8, activityTags: ['Dev'] }],
+        }),
+      ).rejects.toMatchObject({ statusCode: 403, message: expect.stringContaining('frozen') });
     });
   });
 
@@ -261,6 +279,7 @@ describe('TimesheetService', () => {
     };
 
     it('rejects future week submission', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       const futureWeek = getWeekStartDate(new Date());
       futureWeek.setDate(futureWeek.getDate() + 14);
 
@@ -273,6 +292,7 @@ describe('TimesheetService', () => {
     });
 
     it('requires activity tags when logging hours', async () => {
+      resourceRepo.findProfileById.mockResolvedValue(makeResourceProfile());
       timesheetRepo.findByResourceAndWeek.mockResolvedValue(null);
       allocationRepo.findActiveByResource.mockResolvedValue([
         makeAllocation({ projectId: 1, utilisationPercent: 50, fromDate: lastWeek, toDate: lastWeek }),

@@ -23,6 +23,11 @@ export async function submitTimesheetScreen(): Promise<void> {
     const weekStartDate = await promptWeekStartDate('Week Start');
     const context = await employeeApi.getSubmitContext(weekStartDate);
 
+    if (context.timesheetAccessFrozen) {
+      printError('Your timesheet submission access is frozen. Contact your manager to restore access.');
+      return;
+    }
+
     if (context.allocations.length === 0) {
       printError('You have no active project allocations for this week.');
       return;

@@ -1,6 +1,7 @@
 export interface MissedTimesheetCheck {
   hasMissedLastWeek: boolean;
   missedWeekStartDate: string | null;
+  timesheetAccessFrozen: boolean;
 }
 
 export interface WeekAllocation {
@@ -14,6 +15,7 @@ export interface SubmitTimesheetContext {
   employeeName: string;
   weekStartDate: string;
   maxWeeklyHours: number;
+  timesheetAccessFrozen: boolean;
   allocations: WeekAllocation[];
 }
 

@@ -12,6 +12,8 @@ export class TimesheetRepository implements IRepository<Timesheet> {
       resourceId: row.resource_id as number,
       weekStartDate: row.week_start_date as Date,
       status: row.status as Timesheet['status'],
+      reminderCount: (row.reminder_count as number) ?? 0,
+      lastReminderSentAt: (row.last_reminder_sent_at as Date | null) ?? null,
       createdAt: row.created_at as Date,
     };
   }
@@ -58,6 +60,15 @@ export class TimesheetRepository implements IRepository<Timesheet> {
     await pool.query(
       "INSERT IGNORE INTO timesheets (resource_id, week_start_date, status) VALUES (?, ?, 'MISSED')",
       [resourceId, weekStartDate],
+    );
+  }
+
+  async updateReminderSent(resourceId: number, weekStartDate: Date, reminderCount: number): Promise<void> {
+    await pool.query(
+      `UPDATE timesheets
+       SET reminder_count = ?, last_reminder_sent_at = CURDATE()
+       WHERE resource_id = ? AND week_start_date = ?`,
+      [reminderCount, resourceId, weekStartDate],
     );
   }
 }

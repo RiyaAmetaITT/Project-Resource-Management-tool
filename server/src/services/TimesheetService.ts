@@ -29,6 +29,13 @@ export class TimesheetService {
   ) {}
 
   async submitTimesheet(resourceId: number, dto: SubmitTimesheetDto): Promise<void> {
+    const profile = await this.resourceRepository.findProfileById(resourceId);
+    if (profile?.timesheetAccessFrozen) {
+      throw AppError.forbidden(
+        'Your timesheet submission access is frozen. Contact your manager to restore access.',
+      );
+    }
+
     const config = await this.configRepository.getConfig();
     const weekStartDate = parseDate(dto.weekStartDate);
 
@@ -243,23 +250,30 @@ export class TimesheetService {
       employeeName: profile?.fullName ?? 'Unknown',
       weekStartDate: formatDate(weekStartDate),
       maxWeeklyHours: config.maxWeeklyHours,
+      timesheetAccessFrozen: profile?.timesheetAccessFrozen ?? false,
       allocations,
     };
   }
 
   async hasMissedCurrentWeek(resourceId: number): Promise<MissedTimesheetCheckDto> {
+    const profile = await this.resourceRepository.findProfileById(resourceId);
     const lastWeekStart = getWeekStartDate(new Date());
     lastWeekStart.setDate(lastWeekStart.getDate() - DAYS_IN_WEEK);
 
     const hadAllocation = await this.hadActiveAllocationDuringWeek(resourceId, lastWeekStart);
     if (!hadAllocation) {
-      return { hasMissedLastWeek: false, missedWeekStartDate: null };
+      return {
+        hasMissedLastWeek: false,
+        missedWeekStartDate: null,
+        timesheetAccessFrozen: profile?.timesheetAccessFrozen ?? false,
+      };
     }
 
     const submitted = await this.timesheetRepository.findByResourceAndWeek(resourceId, lastWeekStart);
     return {
       hasMissedLastWeek: submitted === null,
       missedWeekStartDate: submitted === null ? formatDate(lastWeekStart) : null,
+      timesheetAccessFrozen: profile?.timesheetAccessFrozen ?? false,
     };
   }
 

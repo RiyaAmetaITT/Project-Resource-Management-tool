@@ -6,8 +6,17 @@ import { allocateResourceScreen } from './allocateResourceScreen';
 import { myProjectsScreen } from './myProjectsScreen';
 import { timesheetsScreen } from './timesheetsScreen';
 import { aiAssistantScreen } from './aiAssistantScreen';
+import { restoreAccessScreen } from './restoreAccessScreen';
 
-const MENU_OPTIONS = ['Resource Dashboard', 'Allocate Resource', 'My Projects', 'Timesheets', 'AI Assistant', 'Logout'];
+const MENU_OPTIONS = [
+  'Resource Dashboard',
+  'Allocate Resource',
+  'My Projects',
+  'Timesheets',
+  'Restore Timesheet Access',
+  'AI Assistant',
+  'Logout',
+];
 
 /** Screen 4 — Manager Menu */
 export async function managerMenu(): Promise<void> {
@@ -26,6 +35,7 @@ export async function managerMenu(): Promise<void> {
     case 'Allocate Resource':  await allocateResourceScreen(); break;
     case 'My Projects':        await myProjectsScreen(); break;
     case 'Timesheets':         await timesheetsScreen(); break;
+    case 'Restore Timesheet Access': await restoreAccessScreen(); break;
     case 'AI Assistant':       await aiAssistantScreen(); break;
     case 'Logout':
       clearSession();

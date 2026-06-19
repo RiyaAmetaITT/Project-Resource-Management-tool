@@ -42,6 +42,7 @@ describe('EmployeeService', () => {
     timesheetService.hasMissedCurrentWeek.mockResolvedValue({
       hasMissedLastWeek: true,
       missedWeekStartDate: '02-06-2025',
+      timesheetAccessFrozen: false,
     });
 
     const result = await service.checkMissedTimesheet(1);

@@ -6,6 +6,8 @@ import { ProjectRepository } from '../../../../server/src/repositories/ProjectRe
 import { SystemConfigRepository } from '../../../../server/src/repositories/SystemConfigRepository';
 import { TimesheetRepository } from '../../../../server/src/repositories/TimesheetRepository';
 import { TimesheetEntryRepository } from '../../../../server/src/repositories/TimesheetEntryRepository';
+import { TimesheetNotificationService } from '../../../../server/src/services/TimesheetNotificationService';
+import { ProjectHealthNotificationService } from '../../../../server/src/services/ProjectHealthNotificationService';
 import {
   createMockRepo,
   makeResourceProfile,
@@ -26,6 +28,8 @@ describe('SchedulerService', () => {
   let configRepo: jest.Mocked<SystemConfigRepository>;
   let timesheetRepo: jest.Mocked<TimesheetRepository>;
   let entryRepo: jest.Mocked<TimesheetEntryRepository>;
+  let notificationService: jest.Mocked<TimesheetNotificationService>;
+  let projectHealthNotificationService: jest.Mocked<ProjectHealthNotificationService>;
   let scheduler: SchedulerService;
 
   beforeEach(() => {
@@ -36,6 +40,10 @@ describe('SchedulerService', () => {
     configRepo = createMockRepo<SystemConfigRepository>();
     timesheetRepo = createMockRepo<TimesheetRepository>();
     entryRepo = createMockRepo<TimesheetEntryRepository>();
+    notificationService = createMockRepo<TimesheetNotificationService>();
+    projectHealthNotificationService = createMockRepo<ProjectHealthNotificationService>();
+    notificationService.processNotifications.mockResolvedValue(undefined);
+    projectHealthNotificationService.notifyAtRisk.mockResolvedValue(undefined);
     configRepo.getConfig.mockResolvedValue(makeSystemConfig());
     scheduler = new SchedulerService(
       allocationRepo,
@@ -45,6 +53,8 @@ describe('SchedulerService', () => {
       configRepo,
       timesheetRepo,
       entryRepo,
+      notificationService,
+      projectHealthNotificationService,
     );
   });
 
@@ -188,6 +198,73 @@ describe('SchedulerService', () => {
       await scheduler.runAllChecks();
 
       expect(projectRepo.updateHealthStatus).toHaveBeenCalledWith(4, HealthStatus.AT_RISK);
+    });
+
+    it('notifies the manager when a project becomes AT_RISK for the first time', async () => {
+      resourceRepo.findAllActive.mockResolvedValue([]);
+      milestoneRepo.findIncompletePastDue.mockResolvedValue([]);
+      projectRepo.findAll.mockResolvedValue([
+        makeProject({ id: 7, atRiskNotifiedAt: null }),
+      ]);
+      milestoneRepo.findByProjectId.mockResolvedValue([
+        {
+          status: MilestoneStatus.IN_PROGRESS,
+          healthFlag: HealthFlag.OVERDUE,
+          dueDate: new Date(),
+          storyPoints: 10,
+        } as never,
+      ]);
+      allocationRepo.findActiveByProject.mockResolvedValue([]);
+
+      await scheduler.runAllChecks();
+
+      expect(projectHealthNotificationService.notifyAtRisk).toHaveBeenCalledWith(7, HealthStatus.AT_RISK);
+      expect(projectRepo.markAtRiskNotified).toHaveBeenCalledWith(7);
+    });
+
+    it('does not re-notify when project is already AT_RISK and was notified', async () => {
+      resourceRepo.findAllActive.mockResolvedValue([]);
+      milestoneRepo.findIncompletePastDue.mockResolvedValue([]);
+      projectRepo.findAll.mockResolvedValue([
+        makeProject({
+          id: 8,
+          healthStatus: HealthStatus.AT_RISK,
+          atRiskNotifiedAt: new Date('2026-06-01'),
+        }),
+      ]);
+      milestoneRepo.findByProjectId.mockResolvedValue([
+        {
+          status: MilestoneStatus.IN_PROGRESS,
+          healthFlag: HealthFlag.OVERDUE,
+          dueDate: new Date(),
+          storyPoints: 10,
+        } as never,
+      ]);
+      allocationRepo.findActiveByProject.mockResolvedValue([]);
+
+      await scheduler.runAllChecks();
+
+      expect(projectHealthNotificationService.notifyAtRisk).not.toHaveBeenCalled();
+    });
+
+    it('clears at-risk notification flag when project health improves', async () => {
+      resourceRepo.findAllActive.mockResolvedValue([]);
+      milestoneRepo.findIncompletePastDue.mockResolvedValue([]);
+      projectRepo.findAll.mockResolvedValue([
+        makeProject({
+          id: 9,
+          healthStatus: HealthStatus.AT_RISK,
+          atRiskNotifiedAt: new Date('2026-06-01'),
+          totalStoryPoints: 0,
+        }),
+      ]);
+      milestoneRepo.findByProjectId.mockResolvedValue([]);
+      allocationRepo.findActiveByProject.mockResolvedValue([]);
+
+      await scheduler.runAllChecks();
+
+      expect(projectRepo.updateHealthStatus).toHaveBeenCalledWith(9, HealthStatus.ON_TRACK);
+      expect(projectRepo.clearAtRiskNotification).toHaveBeenCalledWith(9);
     });
   });
 });
