@@ -2,66 +2,32 @@ import { Router } from 'express';
 import { requireRole } from '../middleware/authMiddleware';
 import { Role } from '../types/enums';
 import { ManagerController } from '../controllers/ManagerController';
-import { AllocationService } from '../services/AllocationService';
-import { TimesheetService } from '../services/TimesheetService';
-import { AIServiceFactory } from '../services/ai/AIServiceFactory';
-import { AllocationRepository } from '../repositories/AllocationRepository';
-import { EmployeeRepository } from '../repositories/EmployeeRepository';
-import { EmployeeSkillRepository } from '../repositories/EmployeeSkillRepository';
-import { ActivityTagRepository } from '../repositories/ActivityTagRepository';
-import { ProjectRepository } from '../repositories/ProjectRepository';
-import { MilestoneRepository } from '../repositories/MilestoneRepository';
-import { TimesheetRepository } from '../repositories/TimesheetRepository';
-import { TimesheetEntryRepository } from '../repositories/TimesheetEntryRepository';
-import { SystemConfigRepository } from '../repositories/SystemConfigRepository';
+import { createManagerService } from '../bootstrap/createManagerService';
 
 const router = Router();
 const managerOnly = requireRole(Role.MANAGER);
 
-// Composition root
-const allocationRepo = new AllocationRepository();
-const employeeRepo = new EmployeeRepository();
-const skillRepo = new EmployeeSkillRepository();
-const activityTagRepo = new ActivityTagRepository();
-const projectRepo = new ProjectRepository();
-const milestoneRepo = new MilestoneRepository();
-const timesheetRepo = new TimesheetRepository();
-const entryRepo = new TimesheetEntryRepository();
-const configRepo = new SystemConfigRepository();
+const { managerService } = createManagerService();
+const controller = new ManagerController(managerService);
 
-const allocationService = new AllocationService(allocationRepo, employeeRepo, projectRepo);
-const timesheetService = new TimesheetService(timesheetRepo, entryRepo, activityTagRepo, allocationRepo, employeeRepo, projectRepo, configRepo);
-const aiFactory = new AIServiceFactory(configRepo);
+router.get('/resources/dashboard', managerOnly, controller.getResourceDashboard);
+router.get('/resources/employees/:id', managerOnly, controller.getEmployeeDetail);
 
-const ctrl = new ManagerController(
-  allocationService,
-  timesheetService,
-  aiFactory,
-  employeeRepo,
-  skillRepo,
-  activityTagRepo,
-  projectRepo,
-  milestoneRepo,
-);
+router.post('/allocations', managerOnly, controller.allocateResource);
+router.post('/allocations/validate', managerOnly, controller.validateAllocation);
+router.put('/allocations/:id/end', managerOnly, controller.endAllocation);
+router.get('/projects/:projectId/allocations', managerOnly, controller.getActiveAllocationsForProject);
 
-// ── Resource Dashboard ────────────────────────────────────────────────────────
-router.get('/resources/dashboard', managerOnly, ctrl.getResourceDashboard);
-router.get('/resources/employees/:id', managerOnly, ctrl.getEmployeeDetail);
+router.get('/projects', managerOnly, controller.getMyProjects);
+router.get('/projects/:id/detail', managerOnly, controller.getProjectDetail);
 
-// ── Allocation ────────────────────────────────────────────────────────────────
-router.post('/allocations', managerOnly, ctrl.allocateResource);
-router.put('/allocations/:id/end', managerOnly, ctrl.endAllocation);
-router.get('/projects/:projectId/allocations', managerOnly, ctrl.getActiveAllocationsForProject);
+router.get('/timesheets', managerOnly, controller.getTeamTimesheets);
+router.get('/timesheets/detail', managerOnly, controller.getEmployeeTimesheetDetail);
+router.get('/timesheets/frozen-employees', managerOnly, controller.getFrozenEmployees);
+router.put('/resources/employees/:id/restore-timesheet-access', managerOnly, controller.restoreTimesheetAccess);
 
-// ── My Projects ───────────────────────────────────────────────────────────────
-router.get('/projects', managerOnly, ctrl.getMyProjects);
-router.get('/projects/:id/detail', managerOnly, ctrl.getProjectDetail);
-
-// ── Timesheets ────────────────────────────────────────────────────────────────
-router.get('/timesheets', managerOnly, ctrl.getTeamTimesheets);
-
-// ── AI ────────────────────────────────────────────────────────────────────────
-router.post('/ai/skill-match', managerOnly, ctrl.aiSkillMatch);
-router.post('/ai/risk-summary', managerOnly, ctrl.aiRiskSummary);
+router.post('/ai/skill-match', managerOnly, controller.aiSkillMatch);
+router.post('/ai/risk-summary', managerOnly, controller.aiRiskSummary);
+router.post('/ai/team-build', managerOnly, controller.aiTeamBuild);
 
 export default router;

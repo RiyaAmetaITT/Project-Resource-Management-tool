@@ -1,6 +1,6 @@
 export interface Allocation {
   id: number;
-  employeeId: number;
+  resourceId: number;
   projectId: number;
   utilisationPercent: number;
   fromDate: Date;

@@ -2,7 +2,6 @@ import { adminApi } from '../../../apiClient/adminApi';
 import { printHeader, printSuccess, printError } from '../../../utils/consoleUi';
 import { promptNumber, promptText } from '../../../utils/inputHelpers';
 
-/** Screen 3.1.3 — Update Employee */
 export async function updateEmployeeScreen(): Promise<void> {
   printHeader('UPDATE EMPLOYEE');
   console.log();

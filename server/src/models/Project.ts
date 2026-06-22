@@ -10,5 +10,6 @@ export interface Project {
   status: ProjectStatus;
   healthStatus: HealthStatus;
   managerId: number;
+  atRiskNotifiedAt: Date | null;
   createdAt: Date;
 }

@@ -1,23 +1,16 @@
 import { adminApi } from '../../../apiClient/adminApi';
 import { printHeader, printTable, printError, printDivider, printInfo } from '../../../utils/consoleUi';
 import { promptText, selectFromMenu } from '../../../utils/inputHelpers';
+import { EmployeeSummary } from '../../../types/admin';
 import { EmployeeStatus } from '../../../types/enums';
 
-interface EmployeeRow {
-  id: number;
-  name: string;
-  department: string;
-  status: string;
-}
-
-/** Screen 3.1.1 — View All Employees */
 export async function viewEmployeesScreen(): Promise<void> {
   let statusFilter: string | null = null;
   let departmentFilter: string | null = null;
 
-  let allEmployees: EmployeeRow[];
+  let allEmployees: EmployeeSummary[];
   try {
-    allEmployees = await adminApi.getAllEmployees() as EmployeeRow[];
+    allEmployees = await adminApi.getAllEmployees();
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to load employees.');
     return;
@@ -67,10 +60,10 @@ export async function viewEmployeesScreen(): Promise<void> {
 }
 
 function applyEmployeeFilters(
-  employees: EmployeeRow[],
+  employees: EmployeeSummary[],
   statusFilter: string | null,
   departmentFilter: string | null,
-): EmployeeRow[] {
+): EmployeeSummary[] {
   return employees.filter((e) => {
     if (statusFilter && e.status !== statusFilter) return false;
     if (departmentFilter && e.department !== departmentFilter) return false;
@@ -79,7 +72,7 @@ function applyEmployeeFilters(
 }
 
 async function promptEmployeeFilters(
-  allEmployees: EmployeeRow[],
+  allEmployees: EmployeeSummary[],
   currentStatus: string | null,
   currentDepartment: string | null,
 ): Promise<{ statusFilter: string | null; departmentFilter: string | null }> {

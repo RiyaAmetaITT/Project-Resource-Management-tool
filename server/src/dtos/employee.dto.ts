@@ -1,4 +1,4 @@
-import { EmployeeStatus } from '../types/enums';
+import { ResourceStatus } from '../types/enums';
 
 export interface UpdateEmployeeDto {
   name?: string;
@@ -7,7 +7,6 @@ export interface UpdateEmployeeDto {
   designation?: string;
 }
 
-/** DTO for the Assign Manager operation (Screen 3.1.4). */
 export interface AssignManagerDto {
   employeeUserId: number;
   managerId: number;
@@ -21,7 +20,7 @@ export interface EmployeeResponseDto {
   email: string;
   department: string;
   designation: string;
-  status: EmployeeStatus;
+  status: ResourceStatus;
   totalUtilisation: number;
   isActive: boolean;
 }

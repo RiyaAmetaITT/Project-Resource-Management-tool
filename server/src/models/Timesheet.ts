@@ -1,7 +1,9 @@
 export interface Timesheet {
   id: number;
-  employeeId: number;
+  resourceId: number;
   weekStartDate: Date;
-  status: 'SUBMITTED';
+  status: 'SUBMITTED' | 'MISSED';
+  reminderCount: number;
+  lastReminderSentAt: Date | null;
   createdAt: Date;
 }

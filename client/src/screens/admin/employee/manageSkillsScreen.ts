@@ -8,16 +8,17 @@ const PROFICIENCY_CHOICES = Object.values(Proficiency) as string[];
 
 const MENU_OPTIONS = ['Add Skill', 'Update Proficiency Level', 'Remove Skill', 'Back'];
 
-/** Screen 3.1.3 — Manage Employee Skills */
 export async function manageSkillsScreen(): Promise<void> {
   printHeader('MANAGE SKILLS');
   console.log();
 
   try {
     const employeeId = await promptNumber('Enter Employee ID:', 1, 99999);
-    const skills = await adminApi.getEmployeeSkills(employeeId) as Array<{
-      id: number; skillName: string; proficiencyLevel: string;
-    }>;
+    const employee = await adminApi.getEmployeeById(employeeId);
+    const skills = await adminApi.getEmployeeSkills(employeeId);
+
+    console.log(`\n  ── ${employee.name} ─────────────────────────────────`);
+    console.log('  Current Skills:');
 
     if (skills.length > 0) {
       printTable(['#', 'Skill', 'Proficiency'], skills.map((s, i) => [i + 1, s.skillName, s.proficiencyLevel]));

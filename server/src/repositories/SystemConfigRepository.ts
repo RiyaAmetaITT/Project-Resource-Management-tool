@@ -1,27 +1,56 @@
 import { RowDataPacket } from 'mysql2';
 import pool from '../db/database';
+import { IRepository } from './IRepository';
 import { SystemConfig } from '../models/SystemConfig';
-import { SYSTEM_CONFIG_ROW_ID } from '../constants';
+import { SYSTEM_CONFIG_ROW_ID, DEFAULT_LLM_MODEL } from '../constants';
+import { LlmProvider } from '../types/enums';
 
-type ConfigRow = SystemConfig & RowDataPacket;
+interface SystemConfigRow extends RowDataPacket {
+  id: number;
+  llm_provider: LlmProvider;
+  llm_host: string | null;
+  llm_model: string | null;
+  llm_api_key: string;
+  scheduler_interval_hrs: number;
+  max_weekly_hours: number;
+}
 
-/**
- * SystemConfigRepository — single-row table; no insert/delete exposed.
- * Only read and update are needed.
- */
-export class SystemConfigRepository {
+export class SystemConfigRepository implements IRepository<SystemConfig> {
+  async findById(id: number): Promise<SystemConfig | null> {
+    if (id !== SYSTEM_CONFIG_ROW_ID) return null;
+    try {
+      return await this.getConfig();
+    } catch {
+      return null;
+    }
+  }
+
+  async findAll(): Promise<SystemConfig[]> {
+    return [await this.getConfig()];
+  }
+
+  async save(entity: Partial<SystemConfig>): Promise<SystemConfig> {
+    return this.updateConfig(entity);
+  }
+
+  async delete(_id: number): Promise<void> {
+    throw new Error('System configuration cannot be deleted.');
+  }
+
   async getConfig(): Promise<SystemConfig> {
-    const [rows] = await pool.query<ConfigRow[]>(
+    const [rows] = await pool.query<SystemConfigRow[]>(
       'SELECT * FROM system_config WHERE id = ?',
       [SYSTEM_CONFIG_ROW_ID],
     );
-    if (!rows[0]) {
+    const row = rows[0];
+    if (!row) {
       throw new Error('System configuration row is missing. Run migrations.');
     }
-    const row = rows[0] as any;
     return {
       id: row.id,
       llmProvider: row.llm_provider,
+      llmHost: row.llm_host ?? '',
+      llmModel: row.llm_model?.trim() || DEFAULT_LLM_MODEL,
       llmApiKey: row.llm_api_key,
       schedulerIntervalHrs: row.scheduler_interval_hrs,
       maxWeeklyHours: row.max_weekly_hours,
@@ -31,6 +60,8 @@ export class SystemConfigRepository {
   async updateConfig(fields: Partial<SystemConfig>): Promise<SystemConfig> {
     const columnMap: Partial<Record<keyof SystemConfig, string>> = {
       llmProvider: 'llm_provider',
+      llmHost: 'llm_host',
+      llmModel: 'llm_model',
       llmApiKey: 'llm_api_key',
       schedulerIntervalHrs: 'scheduler_interval_hrs',
       maxWeeklyHours: 'max_weekly_hours',

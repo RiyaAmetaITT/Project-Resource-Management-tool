@@ -5,7 +5,7 @@ export interface TimesheetEntryDto {
 }
 
 export interface SubmitTimesheetDto {
-  weekStartDate: string; // DD-MM-YYYY
+  weekStartDate: string;
   entries: TimesheetEntryDto[];
 }
 
@@ -18,7 +18,6 @@ export interface TimesheetResponseDto {
   status: 'SUBMITTED' | 'MISSED';
 }
 
-/** Per-project row for manager team timesheet view (Screen 4.4). */
 export interface TeamTimesheetRowDto {
   employeeId: number;
   employeeName: string;
@@ -35,4 +34,42 @@ export interface SkillMatchRequestDto {
 
 export interface RiskSummaryRequestDto {
   projectId: number;
+}
+
+export interface TeamBuildRequestDto {
+  requirement: string;
+}
+
+export interface WeekAllocationDto {
+  projectId: number;
+  projectName: string;
+  utilisationPercent: number;
+  maxHours: number;
+}
+
+export interface SubmitTimesheetContextDto {
+  employeeName: string;
+  weekStartDate: string;
+  maxWeeklyHours: number;
+  timesheetAccessFrozen: boolean;
+  allocations: WeekAllocationDto[];
+}
+
+export interface MissedTimesheetCheckDto {
+  hasMissedLastWeek: boolean;
+  missedWeekStartDate: string | null;
+  timesheetAccessFrozen: boolean;
+}
+
+export interface EmployeeWeekTimesheetDetailDto {
+  employeeName: string;
+  weekStartDate: string;
+  status: 'SUBMITTED' | 'MISSED';
+  entries: Array<{
+    projectId: number;
+    projectName: string;
+    hours: number;
+    activityTags: string[];
+  }>;
+  totalHours: number;
 }

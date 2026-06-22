@@ -2,19 +2,13 @@ import { adminApi } from '../../../apiClient/adminApi';
 import { printHeader, printSuccess, printError, printWarning } from '../../../utils/consoleUi';
 import { promptNumber, confirm } from '../../../utils/inputHelpers';
 
-/** Screen 3.1.2 — Deactivate Employee */
 export async function deactivateEmployeeScreen(): Promise<void> {
   printHeader('DEACTIVATE EMPLOYEE');
   console.log();
 
   try {
     const id = await promptNumber('Enter Employee ID:', 1, 99999);
-    const preview = await adminApi.getEmployeeDeactivatePreview(id) as {
-      employee: { name: string; department: string; status: string; totalUtilisation: number };
-      activeAllocations: Array<{
-        projectName: string; utilisationPercent: number; toDate: string;
-      }>;
-    };
+    const preview = await adminApi.getEmployeeDeactivatePreview(id);
 
     console.log(`\n  ── ${preview.employee.name} ─────────────────────────────────`);
     console.log(`  Department : ${preview.employee.department}`);

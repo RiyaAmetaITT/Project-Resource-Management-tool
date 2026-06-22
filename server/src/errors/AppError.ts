@@ -1,8 +1,3 @@
-/**
- * Domain error with an associated HTTP status code.
- * Throw this in services to signal business rule violations.
- * The global errorHandler middleware maps it to the correct HTTP response.
- */
 export class AppError extends Error {
   public readonly statusCode: number;
 
@@ -10,7 +5,6 @@ export class AppError extends Error {
     super(message);
     this.statusCode = statusCode;
     this.name = 'AppError';
-    // Maintains proper stack trace in V8
     Error.captureStackTrace(this, this.constructor);
   }
 

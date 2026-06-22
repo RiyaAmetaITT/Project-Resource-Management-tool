@@ -6,18 +6,27 @@ import { Timesheet } from '../models/Timesheet';
 type TimesheetRow = Timesheet & RowDataPacket;
 
 export class TimesheetRepository implements IRepository<Timesheet> {
+  private mapRow(row: Record<string, unknown>): Timesheet {
+    return {
+      id: row.id as number,
+      resourceId: row.resource_id as number,
+      weekStartDate: row.week_start_date as Date,
+      status: row.status as Timesheet['status'],
+      reminderCount: (row.reminder_count as number) ?? 0,
+      lastReminderSentAt: (row.last_reminder_sent_at as Date | null) ?? null,
+      createdAt: row.created_at as Date,
+    };
+  }
+
   async findById(id: number): Promise<Timesheet | null> {
-    const [rows] = await pool.query<TimesheetRow[]>(
-      'SELECT * FROM timesheets WHERE id = ?',
-      [id],
-    );
-    return rows[0] ?? null;
+    const [rows] = await pool.query<TimesheetRow[]>('SELECT * FROM timesheets WHERE id = ?', [id]);
+    return rows[0] ? this.mapRow(rows[0]) : null;
   }
 
   async save(entity: Partial<Timesheet>): Promise<Timesheet> {
     const [result] = await pool.query<ResultSetHeader>(
-      "INSERT INTO timesheets (employee_id, week_start_date, status) VALUES (?, ?, 'SUBMITTED')",
-      [entity.employeeId, entity.weekStartDate],
+      "INSERT INTO timesheets (resource_id, week_start_date, status) VALUES (?, ?, 'SUBMITTED')",
+      [entity.resourceId, entity.weekStartDate],
     );
     return this.findById(result.insertId) as Promise<Timesheet>;
   }
@@ -28,33 +37,38 @@ export class TimesheetRepository implements IRepository<Timesheet> {
 
   async findAll(): Promise<Timesheet[]> {
     const [rows] = await pool.query<TimesheetRow[]>('SELECT * FROM timesheets');
-    return rows;
+    return rows.map((r) => this.mapRow(r));
   }
 
-  async findByEmployeeAndWeek(employeeId: number, weekStartDate: Date): Promise<Timesheet | null> {
+  async findByResourceAndWeek(resourceId: number, weekStartDate: Date): Promise<Timesheet | null> {
     const [rows] = await pool.query<TimesheetRow[]>(
-      'SELECT * FROM timesheets WHERE employee_id = ? AND week_start_date = ?',
-      [employeeId, weekStartDate],
+      'SELECT * FROM timesheets WHERE resource_id = ? AND week_start_date = ?',
+      [resourceId, weekStartDate],
     );
-    return rows[0] ?? null;
+    return rows[0] ? this.mapRow(rows[0]) : null;
   }
 
-  async findByEmployeeId(employeeId: number): Promise<Timesheet[]> {
+  async findByResourceId(resourceId: number): Promise<Timesheet[]> {
     const [rows] = await pool.query<TimesheetRow[]>(
-      'SELECT * FROM timesheets WHERE employee_id = ? ORDER BY week_start_date DESC',
-      [employeeId],
+      'SELECT * FROM timesheets WHERE resource_id = ? ORDER BY week_start_date DESC',
+      [resourceId],
     );
-    return rows;
+    return rows.map((r) => this.mapRow(r));
   }
 
-  /** Returns submitted timesheets for all employees in a project for a given week. */
-  async findByProjectAndWeek(projectId: number, weekStartDate: Date): Promise<TimesheetRow[]> {
-    const [rows] = await pool.query<TimesheetRow[]>(
-      `SELECT t.* FROM timesheets t
-       INNER JOIN timesheet_entries te ON te.timesheet_id = t.id
-       WHERE te.project_id = ? AND t.week_start_date = ?`,
-      [projectId, weekStartDate],
+  async saveMissed(resourceId: number, weekStartDate: Date): Promise<void> {
+    await pool.query(
+      "INSERT IGNORE INTO timesheets (resource_id, week_start_date, status) VALUES (?, ?, 'MISSED')",
+      [resourceId, weekStartDate],
     );
-    return rows;
+  }
+
+  async updateReminderSent(resourceId: number, weekStartDate: Date, reminderCount: number): Promise<void> {
+    await pool.query(
+      `UPDATE timesheets
+       SET reminder_count = ?, last_reminder_sent_at = CURDATE()
+       WHERE resource_id = ? AND week_start_date = ?`,
+      [reminderCount, resourceId, weekStartDate],
+    );
   }
 }

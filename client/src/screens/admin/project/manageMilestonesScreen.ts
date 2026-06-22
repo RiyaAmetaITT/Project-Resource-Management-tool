@@ -1,9 +1,9 @@
 import { adminApi } from '../../../apiClient/adminApi';
 import { printHeader, printTable, printSuccess, printError, printDivider } from '../../../utils/consoleUi';
 import { selectFromMenu, promptNumber, promptText, promptDate } from '../../../utils/inputHelpers';
+import { formatDisplayDate } from '../../../utils/dateFormat';
 import { MilestoneStatus } from '../../../types/enums';
 
-/** Screen 3.2.4 — Manage Milestones */
 export async function manageMilestonesScreen(): Promise<void> {
   printHeader('MILESTONES');
   console.log();
@@ -21,7 +21,7 @@ export async function manageMilestonesScreen(): Promise<void> {
       printTable(
         ['#', 'Title', 'Due Date', 'Story Pts', 'Status', 'Flag'],
         milestones.map((m, i) => [
-          i + 1, m.title, m.dueDate, m.storyPoints ?? 0, m.status,
+          i + 1, m.title, formatDisplayDate(m.dueDate), m.storyPoints ?? 0, m.status,
           m.healthFlag === 'OVERDUE' ? '⚠ OVERDUE' : '',
         ]),
       );

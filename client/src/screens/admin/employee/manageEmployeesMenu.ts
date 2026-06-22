@@ -15,7 +15,6 @@ const MENU_OPTIONS = [
   'Back',
 ];
 
-/** Screen 3.1 — Manage Employees */
 export async function manageEmployeesMenu(): Promise<void> {
   printHeader('MANAGE EMPLOYEES');
   console.log();

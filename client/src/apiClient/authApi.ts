@@ -1,5 +1,5 @@
-import apiClient from './baseClient';
 import { AuthResponseDto } from '../types/auth';
+import apiClient from './baseClient';
 
 export async function login(username: string, password: string): Promise<AuthResponseDto> {
   const res = await apiClient.post<{ data: AuthResponseDto }>('/auth/login', { username, password });
