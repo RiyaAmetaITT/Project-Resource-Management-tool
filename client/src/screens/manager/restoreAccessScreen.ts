@@ -2,7 +2,6 @@ import { printHeader, printTable, printSuccess, printError, printInfo } from '..
 import { selectFromMenu } from '../../utils/inputHelpers';
 import { managerApi } from '../../apiClient/managerApi';
 
-/** Screen 4.6 — Restore Timesheet Access */
 export async function restoreAccessScreen(): Promise<void> {
   printHeader('RESTORE TIMESHEET ACCESS');
   console.log();

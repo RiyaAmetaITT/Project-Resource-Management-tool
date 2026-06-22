@@ -1,7 +1,10 @@
 import { AllocationService } from '../services/AllocationService';
 import { TimesheetService } from '../services/TimesheetService';
 import { AIServiceFactory } from '../services/ai/AIServiceFactory';
+import { ManagerTeamService } from '../services/ManagerTeamService';
+import { ManagerAIService } from '../services/ManagerAIService';
 import { ManagerService } from '../services/ManagerService';
+import { IProjectRiskAnalysis } from '../services/IProjectRiskAnalysis';
 import { AllocationRepository } from '../repositories/AllocationRepository';
 import { ResourceRepository } from '../repositories/ResourceRepository';
 import { ResourceSkillRepository } from '../repositories/ResourceSkillRepository';
@@ -12,7 +15,12 @@ import { TimesheetRepository } from '../repositories/TimesheetRepository';
 import { TimesheetEntryRepository } from '../repositories/TimesheetEntryRepository';
 import { SystemConfigRepository } from '../repositories/SystemConfigRepository';
 
-export function createManagerService(): ManagerService {
+export interface ManagerServiceBundle {
+  managerService: ManagerService;
+  projectRiskAnalysis: IProjectRiskAnalysis;
+}
+
+export function createManagerService(): ManagerServiceBundle {
   const allocationRepository = new AllocationRepository();
   const resourceRepository = new ResourceRepository();
   const resourceSkillRepository = new ResourceSkillRepository();
@@ -39,7 +47,17 @@ export function createManagerService(): ManagerService {
   );
   const aiServiceFactory = new AIServiceFactory(configRepository);
 
-  return new ManagerService(
+  const teamService = new ManagerTeamService(
+    allocationService,
+    timesheetService,
+    resourceRepository,
+    resourceSkillRepository,
+    activityTagRepository,
+    projectRepository,
+    milestoneRepository,
+    configRepository,
+  );
+  const aiService = new ManagerAIService(
     allocationService,
     timesheetService,
     aiServiceFactory,
@@ -50,4 +68,9 @@ export function createManagerService(): ManagerService {
     milestoneRepository,
     configRepository,
   );
+
+  return {
+    managerService: new ManagerService(teamService, aiService),
+    projectRiskAnalysis: aiService,
+  };
 }

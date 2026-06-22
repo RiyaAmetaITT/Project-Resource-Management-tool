@@ -7,7 +7,6 @@ export interface UpdateEmployeeDto {
   designation?: string;
 }
 
-/** DTO for the Assign Manager operation (Screen 3.1.4). */
 export interface AssignManagerDto {
   employeeUserId: number;
   managerId: number;

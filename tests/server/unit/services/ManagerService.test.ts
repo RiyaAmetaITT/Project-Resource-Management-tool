@@ -1,4 +1,6 @@
 import { ManagerService } from '../../../../server/src/services/ManagerService';
+import { ManagerTeamService } from '../../../../server/src/services/ManagerTeamService';
+import { ManagerAIService } from '../../../../server/src/services/ManagerAIService';
 import { AllocationService } from '../../../../server/src/services/AllocationService';
 import { TimesheetService } from '../../../../server/src/services/TimesheetService';
 import { AIServiceFactory } from '../../../../server/src/services/ai/AIServiceFactory';
@@ -52,15 +54,27 @@ describe('ManagerService', () => {
     configRepo.getConfig.mockResolvedValue(makeSystemConfig({ maxWeeklyHours: 40 }));
 
     service = new ManagerService(
-      allocationService,
-      timesheetService,
-      aiServiceFactory,
-      resourceRepo,
-      resourceSkillRepo,
-      activityTagRepo,
-      projectRepo,
-      milestoneRepo,
-      configRepo,
+      new ManagerTeamService(
+        allocationService,
+        timesheetService,
+        resourceRepo,
+        resourceSkillRepo,
+        activityTagRepo,
+        projectRepo,
+        milestoneRepo,
+        configRepo,
+      ),
+      new ManagerAIService(
+        allocationService,
+        timesheetService,
+        aiServiceFactory,
+        resourceRepo,
+        resourceSkillRepo,
+        activityTagRepo,
+        projectRepo,
+        milestoneRepo,
+        configRepo,
+      ),
     );
   });
 

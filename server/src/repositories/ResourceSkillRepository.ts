@@ -1,9 +1,10 @@
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 import pool from '../db/database';
+import { IRepository } from './IRepository';
 import { ResourceSkill, ResourceSkillView } from '../models/ResourceSkill';
 import { Proficiency } from '../types/enums';
 
-export class ResourceSkillRepository {
+export class ResourceSkillRepository implements IRepository<ResourceSkill> {
   private mapView(row: Record<string, unknown>): ResourceSkillView {
     return {
       id: row.id as number,
@@ -27,6 +28,18 @@ export class ResourceSkillRepository {
       skillId: rows[0].skill_id as number,
       proficiencyLevel: rows[0].proficiency_level as Proficiency,
     };
+  }
+
+  async findAll(): Promise<ResourceSkill[]> {
+    const [rows] = await pool.query<RowDataPacket[]>(
+      'SELECT * FROM resource_skills ORDER BY id',
+    );
+    return rows.map((row) => ({
+      id: row.id as number,
+      resourceId: row.resource_id as number,
+      skillId: row.skill_id as number,
+      proficiencyLevel: row.proficiency_level as Proficiency,
+    }));
   }
 
   async save(entity: Partial<ResourceSkill>): Promise<ResourceSkill> {

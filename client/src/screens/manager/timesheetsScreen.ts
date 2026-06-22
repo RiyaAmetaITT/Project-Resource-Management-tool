@@ -3,7 +3,6 @@ import { printHeader, printTable, printError, printDivider } from '../../utils/c
 import { promptDate, promptNumber, promptText } from '../../utils/inputHelpers';
 import chalk from 'chalk';
 
-/** Screen 4.4 — Timesheets (Manager View — read-only) */
 export async function timesheetsScreen(): Promise<void> {
   printHeader('TIMESHEETS — MY TEAM');
   console.log();

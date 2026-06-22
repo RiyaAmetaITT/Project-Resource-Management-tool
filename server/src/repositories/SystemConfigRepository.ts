@@ -1,5 +1,6 @@
 import { RowDataPacket } from 'mysql2';
 import pool from '../db/database';
+import { IRepository } from './IRepository';
 import { SystemConfig } from '../models/SystemConfig';
 import { SYSTEM_CONFIG_ROW_ID, DEFAULT_LLM_MODEL } from '../constants';
 import { LlmProvider } from '../types/enums';
@@ -14,7 +15,28 @@ interface SystemConfigRow extends RowDataPacket {
   max_weekly_hours: number;
 }
 
-export class SystemConfigRepository {
+export class SystemConfigRepository implements IRepository<SystemConfig> {
+  async findById(id: number): Promise<SystemConfig | null> {
+    if (id !== SYSTEM_CONFIG_ROW_ID) return null;
+    try {
+      return await this.getConfig();
+    } catch {
+      return null;
+    }
+  }
+
+  async findAll(): Promise<SystemConfig[]> {
+    return [await this.getConfig()];
+  }
+
+  async save(entity: Partial<SystemConfig>): Promise<SystemConfig> {
+    return this.updateConfig(entity);
+  }
+
+  async delete(_id: number): Promise<void> {
+    throw new Error('System configuration cannot be deleted.');
+  }
+
   async getConfig(): Promise<SystemConfig> {
     const [rows] = await pool.query<SystemConfigRow[]>(
       'SELECT * FROM system_config WHERE id = ?',

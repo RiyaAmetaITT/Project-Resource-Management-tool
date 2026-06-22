@@ -2,8 +2,8 @@ export interface AllocateDto {
   employeeId: number;
   projectId: number;
   utilisationPercent: number;
-  fromDate: string; // DD-MM-YYYY
-  toDate: string;   // DD-MM-YYYY
+  fromDate: string;
+  toDate: string;
 }
 
 export interface AllocationResponseDto {

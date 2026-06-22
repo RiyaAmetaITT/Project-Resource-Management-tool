@@ -1,8 +1,7 @@
 import { employeeApi } from '../../apiClient/employeeApi';
-import { printHeader, printTable, printError, printDivider } from '../../utils/consoleUi';
+import { printHeader, printTable, printError, printDivider, returnToMenuPrompt } from '../../utils/consoleUi';
 import { formatDisplayDate } from '../../utils/dateFormat';
 
-/** Screen 5.3 — View My Allocations */
 export async function myAllocationsScreen(): Promise<void> {
   printHeader('MY ALLOCATIONS');
   console.log();
@@ -11,7 +10,7 @@ export async function myAllocationsScreen(): Promise<void> {
     const allocations = await employeeApi.getMyAllocations();
 
     if (allocations.length === 0) {
-      console.log('  You have no active project allocations. You are on the Bench.\n');
+      console.log('  You have no active project allocations. You are currently on the Bench.\n');
       return;
     }
 
@@ -42,5 +41,7 @@ export async function myAllocationsScreen(): Promise<void> {
     console.log(`  Total Utilisation: ${totalUtilisation}%\n`);
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to load allocations.');
+  } finally {
+    await returnToMenuPrompt();
   }
 }

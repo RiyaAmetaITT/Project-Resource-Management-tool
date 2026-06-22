@@ -15,6 +15,7 @@ import {
 } from '../dtos/timesheet.dto';
 import { AppError } from '../errors/AppError';
 import { parseDate, getWeekStartDate, isFutureDate, formatDate } from '../utils/dateUtils';
+import { hasActiveAllocationDuringWeek } from '../utils/allocationWeekUtils';
 import { DAYS_IN_WEEK, MAX_UTILISATION_PERCENT, MISSED_TIMESHEET_HISTORY_WEEKS } from '../constants';
 
 export class TimesheetService {
@@ -101,7 +102,11 @@ export class TimesheetService {
 
       if (isFutureDate(weekStart) || this.isCurrentWeek(weekStart)) continue;
 
-      const hadAllocation = await this.hadActiveAllocationDuringWeek(resourceId, weekStart);
+      const hadAllocation = await hasActiveAllocationDuringWeek(
+        this.allocationRepository,
+        resourceId,
+        weekStart,
+      );
       if (!hadAllocation) continue;
 
       const existing = submittedByWeek.get(formatDate(weekStart));
@@ -260,7 +265,11 @@ export class TimesheetService {
     const lastWeekStart = getWeekStartDate(new Date());
     lastWeekStart.setDate(lastWeekStart.getDate() - DAYS_IN_WEEK);
 
-    const hadAllocation = await this.hadActiveAllocationDuringWeek(resourceId, lastWeekStart);
+    const hadAllocation = await hasActiveAllocationDuringWeek(
+      this.allocationRepository,
+      resourceId,
+      lastWeekStart,
+    );
     if (!hadAllocation) {
       return {
         hasMissedLastWeek: false,
@@ -301,13 +310,6 @@ export class TimesheetService {
   private isCurrentWeek(weekStartDate: Date): boolean {
     const currentWeekStart = getWeekStartDate(new Date());
     return formatDate(weekStartDate) === formatDate(currentWeekStart);
-  }
-
-  private async hadActiveAllocationDuringWeek(resourceId: number, weekStart: Date): Promise<boolean> {
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + DAYS_IN_WEEK - 1);
-    const utilisation = await this.allocationRepository.sumUtilisationInPeriod(resourceId, weekStart, weekEnd);
-    return utilisation > 0;
   }
 
   private async getAllocationsForWeek(resourceId: number, weekStart: Date) {

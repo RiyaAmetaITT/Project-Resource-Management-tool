@@ -5,7 +5,7 @@ export interface TimesheetEntryDto {
 }
 
 export interface SubmitTimesheetDto {
-  weekStartDate: string; // DD-MM-YYYY
+  weekStartDate: string;
   entries: TimesheetEntryDto[];
 }
 
@@ -18,7 +18,6 @@ export interface TimesheetResponseDto {
   status: 'SUBMITTED' | 'MISSED';
 }
 
-/** Per-project row for manager team timesheet view (Screen 4.4). */
 export interface TeamTimesheetRowDto {
   employeeId: number;
   employeeName: string;

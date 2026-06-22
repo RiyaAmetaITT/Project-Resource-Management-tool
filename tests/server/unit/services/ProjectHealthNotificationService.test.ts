@@ -3,7 +3,7 @@ import { ProjectRepository } from '../../../../server/src/repositories/ProjectRe
 import { MilestoneRepository } from '../../../../server/src/repositories/MilestoneRepository';
 import { UserRepository } from '../../../../server/src/repositories/UserRepository';
 import { EmailService } from '../../../../server/src/services/EmailService';
-import { ManagerService } from '../../../../server/src/services/ManagerService';
+import { IProjectRiskAnalysis } from '../../../../server/src/services/IProjectRiskAnalysis';
 import {
   createMockRepo,
   makeProject,
@@ -16,7 +16,7 @@ describe('ProjectHealthNotificationService', () => {
   let milestoneRepo: jest.Mocked<MilestoneRepository>;
   let userRepo: jest.Mocked<UserRepository>;
   let emailService: jest.Mocked<EmailService>;
-  let managerService: jest.Mocked<ManagerService>;
+  let projectRiskAnalysis: jest.Mocked<IProjectRiskAnalysis>;
   let service: ProjectHealthNotificationService;
 
   beforeEach(() => {
@@ -24,13 +24,13 @@ describe('ProjectHealthNotificationService', () => {
     milestoneRepo = createMockRepo<MilestoneRepository>();
     userRepo = createMockRepo<UserRepository>();
     emailService = createMockRepo<EmailService>();
-    managerService = createMockRepo<ManagerService>();
+    projectRiskAnalysis = createMockRepo<IProjectRiskAnalysis>();
     service = new ProjectHealthNotificationService(
       projectRepo,
       milestoneRepo,
       userRepo,
       emailService,
-      managerService,
+      projectRiskAnalysis,
     );
   });
 
@@ -56,10 +56,10 @@ describe('ProjectHealthNotificationService', () => {
         healthFlag: HealthFlag.OVERDUE,
       },
     ] as never);
-    managerService.buildRiskSummaryForProject.mockResolvedValue(
+    projectRiskAnalysis.buildRiskSummaryForProject.mockResolvedValue(
       'The Backend API milestone is overdue and hours logged are below expected levels.',
     );
-    managerService.findRiskReductionCandidates.mockResolvedValue([
+    projectRiskAnalysis.findRiskReductionCandidates.mockResolvedValue([
       {
         employeeId: 5,
         name: 'Neha Joshi',
@@ -96,7 +96,7 @@ describe('ProjectHealthNotificationService', () => {
     await service.notifyAtRisk(1, HealthStatus.AT_RISK);
 
     expect(emailService.send).not.toHaveBeenCalled();
-    expect(managerService.buildRiskSummaryForProject).not.toHaveBeenCalled();
+    expect(projectRiskAnalysis.buildRiskSummaryForProject).not.toHaveBeenCalled();
   });
 
   it('skips email when project is not found', async () => {

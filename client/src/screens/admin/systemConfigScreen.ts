@@ -2,7 +2,6 @@ import { adminApi } from '../../apiClient/adminApi';
 import { printHeader, printTable, printSuccess, printError, printDivider } from '../../utils/consoleUi';
 import { selectFromMenu, promptText, promptNumber } from '../../utils/inputHelpers';
 
-/** Screen 3.5 — System Configuration */
 export async function systemConfigScreen(): Promise<void> {
   printHeader('SYSTEM CONFIGURATION');
   console.log();

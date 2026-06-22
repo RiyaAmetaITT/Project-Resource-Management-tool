@@ -10,10 +10,6 @@ const BCRYPT_SALT_ROUNDS = 12;
 const DEFAULT_ADMIN_USERNAME = 'admin';
 const DEFAULT_ADMIN_PASSWORD = 'Admin@1234';
 
-/**
- * Drops and recreates the database, runs migrations, and seeds the bootstrap admin.
- * BRD §3.1: first Admin account is inserted via this one-time setup script.
- */
 async function seed(): Promise<void> {
   const dbName = process.env.DB_NAME ?? 'prm_tool';
   const initPool = mysql.createPool({

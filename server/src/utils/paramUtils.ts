@@ -1,6 +1,5 @@
 import { AppError } from '../errors/AppError';
 
-/** Parses a positive integer route param; rejects missing or non-numeric values. */
 export function parseRouteId(value: string, label = 'ID'): number {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {

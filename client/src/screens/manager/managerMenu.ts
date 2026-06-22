@@ -18,7 +18,6 @@ const MENU_OPTIONS = [
   'Logout',
 ];
 
-/** Screen 4 — Manager Menu */
 export async function managerMenu(): Promise<void> {
   clearScreen();
   const session = getSession();

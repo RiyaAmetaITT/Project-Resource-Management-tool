@@ -76,12 +76,10 @@ export class ProjectRepository implements IRepository<Project> {
       status: 'status',
       managerId: 'manager_id',
     };
-    const setClauses = (Object.keys(fields) as Array<keyof Project>)
-      .filter((key) => columnMap[key] !== undefined)
-      .map((key) => `${columnMap[key]} = ?`);
-    const values = (Object.keys(fields) as Array<keyof Project>)
-      .filter((key) => columnMap[key] !== undefined)
-      .map((key) => fields[key]);
+    const keys = (Object.keys(fields) as Array<keyof Project>)
+      .filter((key) => columnMap[key] !== undefined && fields[key] !== undefined);
+    const setClauses = keys.map((key) => `${columnMap[key]} = ?`);
+    const values = keys.map((key) => fields[key]);
 
     if (setClauses.length === 0) return;
     await pool.query(`UPDATE projects SET ${setClauses.join(', ')} WHERE id = ?`, [...values, id]);

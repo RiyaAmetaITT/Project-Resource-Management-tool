@@ -2,9 +2,7 @@ export const DEFAULT_MAX_WEEKLY_HOURS = 40;
 export const DEFAULT_SCHEDULER_INTERVAL_HRS = 4;
 export const DEFAULT_LLM_HOST = 'http://164.52.211.238/api/generate';
 export const DEFAULT_LLM_MODEL = 'gemma3:12b-it-q8_0';
-/** Max wait for an LLM HTTP call before falling back to rule-based matching. */
 export const LLM_FETCH_TIMEOUT_MS = 90_000;
-/** Max wait for team-build AI orchestration before rule-based fallback. */
 export const TEAM_BUILD_AI_TIMEOUT_MS = 60_000;
 export const DEFAULT_ADMIN_USERNAME = 'admin';
 export const DEFAULT_ADMIN_PASSWORD = 'Admin@1234';
@@ -24,7 +22,6 @@ export const STORY_POINTS_BEHIND_ATTENTION_GAP = 0.2;
 export const STORY_POINTS_BEHIND_CRITICAL_GAP = 0.4;
 export const DAYS_IN_WEEK = 7;
 export const MISSED_TIMESHEET_HISTORY_WEEKS = 12;
-/** Days after week start when the previous week's timesheet is due (Monday after the week ends). */
 export const TIMESHEET_SUBMISSION_DEADLINE_OFFSET_DAYS = 7;
 
 export const ACTIVITY_TAG_OPTIONS = [

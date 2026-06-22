@@ -27,9 +27,7 @@ import {
 } from '../constants';
 import { TimesheetNotificationService } from './TimesheetNotificationService';
 import { ProjectHealthNotificationService } from './ProjectHealthNotificationService';
-import { EmailService } from './EmailService';
-import { UserRepository } from '../repositories/UserRepository';
-import { createManagerService } from '../bootstrap/createManagerService';
+import { hasActiveAllocationDuringWeek } from '../utils/allocationWeekUtils';
 
 export class SchedulerService {
   private scheduledTask: cron.ScheduledTask | null = null;
@@ -44,23 +42,11 @@ export class SchedulerService {
     private readonly configRepository: SystemConfigRepository,
     private readonly timesheetRepository: TimesheetRepository,
     private readonly timesheetEntryRepository: TimesheetEntryRepository,
-    timesheetNotificationService?: TimesheetNotificationService,
-    projectHealthNotificationService?: ProjectHealthNotificationService,
+    timesheetNotificationService: TimesheetNotificationService,
+    projectHealthNotificationService: ProjectHealthNotificationService,
   ) {
-    this.timesheetNotificationService = timesheetNotificationService ?? new TimesheetNotificationService(
-      allocationRepository,
-      resourceRepository,
-      timesheetRepository,
-      new UserRepository(),
-      new EmailService(),
-    );
-    this.projectHealthNotificationService = projectHealthNotificationService ?? new ProjectHealthNotificationService(
-      projectRepository,
-      milestoneRepository,
-      new UserRepository(),
-      new EmailService(),
-      createManagerService(),
-    );
+    this.timesheetNotificationService = timesheetNotificationService;
+    this.projectHealthNotificationService = projectHealthNotificationService;
   }
 
   async start(): Promise<void> {
@@ -117,7 +103,11 @@ export class SchedulerService {
 
         if (this.isCurrentWeek(weekStart) || isFutureDate(weekStart)) continue;
 
-        const hadAllocation = await this.hadActiveAllocationDuringWeek(resource.id, weekStart);
+        const hadAllocation = await hasActiveAllocationDuringWeek(
+          this.allocationRepository,
+          resource.id,
+          weekStart,
+        );
         if (!hadAllocation) continue;
 
         const existing = await this.timesheetRepository.findByResourceAndWeek(
@@ -283,20 +273,6 @@ export class SchedulerService {
 
     const entries = await this.timesheetEntryRepository.findByTimesheetId(timesheet.id);
     return entries.find((e) => e.projectId === projectId)?.hours ?? 0;
-  }
-
-  private async hadActiveAllocationDuringWeek(
-    resourceId: number,
-    weekStart: Date,
-  ): Promise<boolean> {
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + DAYS_IN_WEEK - 1);
-    const utilisation = await this.allocationRepository.sumUtilisationInPeriod(
-      resourceId,
-      weekStart,
-      weekEnd,
-    );
-    return utilisation > 0;
   }
 
   private isCurrentWeek(weekStartDate: Date): boolean {

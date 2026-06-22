@@ -3,6 +3,16 @@ import chalk from 'chalk';
 
 let stdinListener: ((buf: Buffer) => void) | null = null;
 
+function drainPendingNewlines(): void {
+  if (!process.stdin.isTTY) return;
+
+  let chunk: Buffer | string | null;
+  while ((chunk = process.stdin.read()) !== null) {
+    const text = chunk.toString('utf8');
+    if (/[^\r\n]/.test(text)) break;
+  }
+}
+
 function cleanupStdin(): void {
   if (stdinListener) {
     process.stdin.removeListener('data', stdinListener);
@@ -10,15 +20,13 @@ function cleanupStdin(): void {
   }
   if (process.stdin.isTTY) {
     process.stdin.setRawMode(false);
+    drainPendingNewlines();
   }
 }
 
-/**
- * Reads a single line from stdin with full control over echo behaviour.
- * Avoids readline duplicate-echo issues on Windows terminals.
- */
 async function readLine(prompt: string, masked = false): Promise<string> {
   cleanupStdin();
+  drainPendingNewlines();
 
   if (!process.stdin.isTTY) {
     return new Promise((resolve) => {
@@ -72,7 +80,6 @@ async function readLine(prompt: string, masked = false): Promise<string> {
   });
 }
 
-/** Prompts for plain text input (type and press Enter). */
 export async function promptText(message: string, defaultValue?: string): Promise<string> {
   const suffix = defaultValue !== undefined ? ` [${defaultValue}]` : '';
   const answer = await readLine(`${message}${suffix}: `, false);
@@ -80,12 +87,10 @@ export async function promptText(message: string, defaultValue?: string): Promis
   return answer;
 }
 
-/** Prompts for a masked password input — shows only asterisks, never the typed letters. */
 export async function promptPassword(message: string): Promise<string> {
   return readLine(`${message} `, true);
 }
 
-/** Prompts for a number within a range; re-prompts until valid. */
 export async function promptNumber(message: string, min = 1, max = 100): Promise<number> {
   while (true) {
     const input = await promptText(message);
@@ -95,7 +100,6 @@ export async function promptNumber(message: string, min = 1, max = 100): Promise
   }
 }
 
-/** Yes/No confirmation via Y or N key press. */
 export async function confirm(message: string): Promise<boolean> {
   while (true) {
     const input = (await promptText(`${message} [Y/N]`)).toUpperCase();
@@ -106,15 +110,10 @@ export async function confirm(message: string): Promise<boolean> {
 }
 
 interface SelectOptions {
-  /** When false, assumes the numbered list was already printed (e.g. via printMenu). */
   showList?: boolean;
   prompt?: string;
 }
 
-/**
- * Select from a numbered list by typing the option number and pressing Enter.
- * Does not use arrow keys and does not re-print the selected label.
- */
 export async function selectFromMenu(
   messageOrChoices: string | string[],
   choicesOrOptions?: string[] | SelectOptions,
@@ -151,7 +150,6 @@ export async function selectFromMenu(
   }
 }
 
-/** Multi-select via comma-separated numbers (e.g. 1,3,5). */
 export async function multiSelect(message: string, choices: string[]): Promise<string[]> {
   choices.forEach((item, index) => {
     console.log(`  ${chalk.cyan(String(index + 1))}.  ${item}`);
@@ -195,7 +193,6 @@ export async function multiSelect(message: string, choices: string[]): Promise<s
   }
 }
 
-/** Validates a DD-MM-YYYY date string. */
 export function validateDateFormat(input: string): boolean | string {
   if (!input) return true;
   const regex = /^\d{2}-\d{2}-\d{4}$/;
@@ -209,7 +206,6 @@ export function validateDateFormat(input: string): boolean | string {
   return isValid || 'Invalid date value.';
 }
 
-/** Prompts for a DD-MM-YYYY date. Press Enter without input when allowEmpty=true to use today. */
 export async function promptDate(message: string, allowEmpty = false): Promise<string> {
   const today = new Date();
   const defaultDate = `${String(today.getDate()).padStart(2, '0')}-${String(today.getMonth() + 1).padStart(2, '0')}-${today.getFullYear()}`;
@@ -230,12 +226,10 @@ export async function promptDate(message: string, allowEmpty = false): Promise<s
   }
 }
 
-/** Prompts for a utilisation percent between 1 and 100. */
 export async function promptUtilisationPercent(): Promise<number> {
   return promptNumber('Utilisation % (1–100):', 1, 100);
 }
 
-/** Returns the Monday of the most recently completed week in DD-MM-YYYY format. */
 export function getLastCompletedWeekMonday(): string {
   const today = new Date();
   const day = today.getDay();
@@ -248,7 +242,6 @@ export function getLastCompletedWeekMonday(): string {
   return `${dd}-${mm}-${yyyy}`;
 }
 
-/** Prompts for a week-start Monday; Enter defaults to last completed week's Monday. */
 export async function promptWeekStartDate(message: string): Promise<string> {
   const defaultDate = getLastCompletedWeekMonday();
 

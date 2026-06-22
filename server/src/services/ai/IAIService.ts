@@ -1,9 +1,3 @@
-/**
- * AI service interface — Strategy Pattern.
- * Concrete implementation: GemmaAIService.
- * Business code depends only on this interface, never on a specific provider.
- */
-
 export interface CandidateSummary {
   name: string;
   skills: string[];
@@ -50,7 +44,6 @@ export interface TeamBuildCandidate {
   skills: TeamBuildCandidateSkill[];
 }
 
-/** Raw AI output for one role in a team-build request. */
 export interface TeamBuildRoleAssignment {
   roleTitle: string;
   requiredSkills: string[];

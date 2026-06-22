@@ -7,7 +7,6 @@ export interface SessionUser {
   fullName: string;
 }
 
-/** In-memory session. Cleared on logout. */
 let currentUser: SessionUser | null = null;
 
 export function setSession(user: SessionUser): void {

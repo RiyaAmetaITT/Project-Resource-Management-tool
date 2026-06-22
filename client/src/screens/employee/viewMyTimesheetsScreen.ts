@@ -1,5 +1,5 @@
 import { employeeApi } from '../../apiClient/employeeApi';
-import { printHeader, printTable, printError, printDivider } from '../../utils/consoleUi';
+import { printHeader, printTable, printError, printDivider, returnToMenuPrompt } from '../../utils/consoleUi';
 import { promptText } from '../../utils/inputHelpers';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import chalk from 'chalk';
@@ -12,7 +12,7 @@ export async function viewMyTimesheetsScreen(): Promise<void> {
     const timesheets = await employeeApi.getMyTimesheets();
 
     if (timesheets.length === 0) {
-      console.log('  No timesheets found.\n');
+      console.log('  No timesheet history found for your account.\n');
       return;
     }
 
@@ -28,11 +28,14 @@ export async function viewMyTimesheetsScreen(): Promise<void> {
 
     console.log('\n  [V] View week details     [B] Back\n');
     const action = (await promptText('Action')).toUpperCase();
-    if (action !== 'V') return;
+    if (action !== 'V') {
+      console.log(chalk.dim('\n  Returning to main menu.\n'));
+      return;
+    }
 
     const submittedWeeks = timesheets.filter((t) => t.status === 'SUBMITTED');
     if (submittedWeeks.length === 0) {
-      console.log(chalk.dim('  No submitted weeks to view.\n'));
+      console.log(chalk.yellow('\n  No submitted timesheets to view. Only MISSED weeks are on record.\n'));
       return;
     }
 
@@ -68,5 +71,7 @@ export async function viewMyTimesheetsScreen(): Promise<void> {
     }
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to load timesheets.');
+  } finally {
+    await returnToMenuPrompt();
   }
 }

@@ -7,7 +7,6 @@ import { manageMilestonesScreen } from './manageMilestonesScreen';
 
 const MENU_OPTIONS = ['Create Project', 'View All Projects', 'Update Project Details', 'Manage Milestones', 'Back'];
 
-/** Screen 3.2 — Manage Projects */
 export async function manageProjectsMenu(): Promise<void> {
   printHeader('MANAGE PROJECTS');
   console.log();

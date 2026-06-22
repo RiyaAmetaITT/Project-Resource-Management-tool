@@ -10,7 +10,6 @@ import {
   DEFAULT_LLM_MODEL,
 } from '../../../server/src/constants';
 
-/** Creates a jest mock object where every method is jest.fn(). */
 export function createMockRepo<T extends object>(): jest.Mocked<T> {
   return new Proxy({} as jest.Mocked<T>, {
     get(_target, prop: string) {
@@ -61,7 +60,6 @@ export function makeResourceProfile(overrides: Partial<ResourceProfile> = {}): R
   };
 }
 
-/** @deprecated Use makeResourceProfile */
 export const makeEmployee = makeResourceProfile;
 
 export function makeProject(overrides: Partial<Project> = {}): Project {

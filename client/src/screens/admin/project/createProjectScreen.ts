@@ -9,7 +9,6 @@ const CREATE_STATUS_OPTIONS = [
   ProjectStatus.ON_HOLD,
 ];
 
-/** Screen 3.2.1 — Create Project */
 export async function createProjectScreen(): Promise<void> {
   printHeader('CREATE PROJECT');
   console.log();

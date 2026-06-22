@@ -10,6 +10,16 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+export function getAuthenticatedUser(req: AuthenticatedRequest): {
+  userId: number;
+  role: Role;
+} {
+  if (!req.user) {
+    throw AppError.unauthorized('Not authenticated.');
+  }
+  return req.user;
+}
+
 interface JwtPayload {
   userId: number;
   role: Role;

@@ -8,6 +8,7 @@ import {
   printError,
   printDivider,
   printInfo,
+  returnToMenuPrompt,
 } from '../../utils/consoleUi';
 import { promptWeekStartDate, promptNumber, multiSelect, promptText } from '../../utils/inputHelpers';
 import chalk from 'chalk';
@@ -29,7 +30,10 @@ export async function submitTimesheetScreen(): Promise<void> {
     }
 
     if (context.allocations.length === 0) {
-      printError('You have no active project allocations for this week.');
+      printError(
+        `You have no project allocations for week ${context.weekStartDate}. ` +
+          'You cannot submit a timesheet for this week. Contact your manager if you believe this is incorrect.',
+      );
       return;
     }
 
@@ -54,7 +58,7 @@ export async function submitTimesheetScreen(): Promise<void> {
     }
 
     if (entries.length === 0) {
-      printError('No hours logged. Timesheet not submitted.');
+      printError('No hours logged. Timesheet was not submitted.');
       return;
     }
 
@@ -68,12 +72,12 @@ export async function submitTimesheetScreen(): Promise<void> {
     }
     console.log(`  ${'─'.repeat(44)}`);
     const statusLabel = withinLimit
-      ? chalk.green(`✓`)
-      : chalk.red(`✗ over limit`);
+      ? chalk.green('✓')
+      : chalk.red('✗ over limit');
     console.log(`  Total           ${totalHours} hrs / ${context.maxWeeklyHours} hrs max   ${statusLabel}\n`);
 
     if (!withinLimit) {
-      printError(`Total hours exceed the maximum of ${context.maxWeeklyHours} hrs/week.`);
+      printError(`Total hours exceed the maximum of ${context.maxWeeklyHours} hrs/week. Timesheet was not submitted.`);
       return;
     }
 
@@ -81,7 +85,7 @@ export async function submitTimesheetScreen(): Promise<void> {
     console.log('\n  [S] Submit Timesheet     [B] Back\n');
     const action = (await promptText('Action')).toUpperCase();
     if (action !== 'S') {
-      console.log('  Cancelled.\n');
+      console.log(chalk.dim('\n  Submission cancelled. Returning to main menu.\n'));
       return;
     }
 
@@ -89,5 +93,7 @@ export async function submitTimesheetScreen(): Promise<void> {
     printSuccess('Timesheet submitted successfully. Status: SUBMITTED');
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to submit timesheet.');
+  } finally {
+    await returnToMenuPrompt();
   }
 }

@@ -2,7 +2,7 @@ import { ProjectRepository } from '../repositories/ProjectRepository';
 import { MilestoneRepository } from '../repositories/MilestoneRepository';
 import { UserRepository } from '../repositories/UserRepository';
 import { EmailService } from './EmailService';
-import { ManagerService } from './ManagerService';
+import { IProjectRiskAnalysis } from './IProjectRiskAnalysis';
 import { Project } from '../models/Project';
 import { Milestone } from '../models/Milestone';
 import { SkillMatchResultDto } from '../dtos/manager.dto';
@@ -16,7 +16,7 @@ export class ProjectHealthNotificationService {
     private readonly milestoneRepository: MilestoneRepository,
     private readonly userRepository: UserRepository,
     private readonly emailService: EmailService,
-    private readonly managerService: ManagerService,
+    private readonly projectRiskAnalysis: IProjectRiskAnalysis,
   ) {}
 
   async notifyAtRisk(projectId: number, healthStatus: HealthStatus): Promise<void> {
@@ -27,8 +27,8 @@ export class ProjectHealthNotificationService {
     if (!manager?.email) return;
 
     const milestones = await this.milestoneRepository.findByProjectId(projectId);
-    const riskSummary = await this.managerService.buildRiskSummaryForProject(projectId);
-    const suggestions = await this.managerService.findRiskReductionCandidates(projectId);
+    const riskSummary = await this.projectRiskAnalysis.buildRiskSummaryForProject(projectId);
+    const suggestions = await this.projectRiskAnalysis.findRiskReductionCandidates(projectId);
 
     const text = this.buildEmailBody(
       project,

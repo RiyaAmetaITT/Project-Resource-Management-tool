@@ -1,6 +1,6 @@
 # PRM Tool — Entity-Relationship (ER) Diagram
 
-Based on the BRD V4 requirements, the following ER diagram models the underlying database schema necessary to support the application.
+Based on the BRD V4 requirements and the implemented MySQL schema, the following ER diagram models the underlying database structure.
 
 ```mermaid
 erDiagram
@@ -10,6 +10,7 @@ erDiagram
     USER ||--o{ USER : "manages"
     USER ||--o{ PROJECT : "manages"
 
+    RESOURCE ||--o{ USER : "reports to (manager_id)"
     RESOURCE ||--o{ RESOURCE_SKILL : "possesses"
     SKILL ||--o{ RESOURCE_SKILL : "catalogued in"
     RESOURCE ||--o{ ALLOCATION : "assigned to"
@@ -40,13 +41,18 @@ erDiagram
         string designation "Nullable for ADMIN"
         boolean force_password_change
         boolean is_active
+        timestamp created_at
     }
 
     RESOURCE {
         int id PK
         int user_id FK "Unique; MANAGER and EMPLOYEE only"
+        int manager_id FK "Nullable; synced from USER on assign"
         enum status "BENCH, ALLOCATED"
         int total_utilisation
+        boolean timesheet_access_frozen
+        date timesheet_frozen_week_start "Nullable"
+        timestamp created_at
     }
 
     SKILL {
@@ -72,6 +78,8 @@ erDiagram
         enum status "PLANNED, ACTIVE, ON_HOLD, COMPLETED"
         enum health_status "ON_TRACK, ATTENTION, AT_RISK"
         int manager_id FK "References USER (Manager)"
+        timestamp at_risk_notified_at "Nullable"
+        timestamp created_at
     }
 
     MILESTONE {
@@ -91,6 +99,7 @@ erDiagram
         int utilisation_percent
         date from_date
         date to_date
+        timestamp created_at
     }
 
     TIMESHEET {
@@ -98,6 +107,9 @@ erDiagram
         int resource_id FK
         date week_start_date
         enum status "SUBMITTED, MISSED"
+        int reminder_count
+        date last_reminder_sent_at "Nullable"
+        timestamp created_at
     }
 
     TIMESHEET_ENTRY {
@@ -115,7 +127,9 @@ erDiagram
 
     SYSTEM_CONFIG {
         int id PK
-        string llm_provider
+        enum llm_provider "gemma"
+        string llm_host
+        string llm_model
         string llm_api_key
         int scheduler_interval_hrs
         int max_weekly_hours
@@ -124,29 +138,28 @@ erDiagram
 
 ### Key Design Notes:
 
-1. **User vs. Resource Separation:** The `USER` table holds authentication, identity (`full_name`, `email`), organisational placement (`department`, `designation`, `manager_id`), and role assignment. The `RESOURCE` table holds workforce-specific state only — allocation status and utilisation. Admin users exist in `USER` but do not need a `RESOURCE` record. When Admin creates a MANAGER or EMPLOYEE account (Screen 3.4.1), the server auto-creates a linked `RESOURCE` profile; Admin then updates department/designation and assigns a manager on the `USER` record (Screens 3.1.4 / 3.1 update flows).
+1. **User vs. Resource Separation:** The `USER` table holds authentication, identity (`full_name`, `email`), organisational placement (`department`, `designation`, `manager_id`), and role assignment. The `RESOURCE` table holds workforce-specific state only — allocation status, utilisation, and timesheet-access controls. Admin users exist in `USER` but do not need a `RESOURCE` record. When Admin creates a MANAGER or EMPLOYEE account, the server auto-creates a linked `RESOURCE` profile.
 
-2. **Normalised Role Lookup:** Roles are stored in a dedicated `ROLE` table rather than an inline enum on `USER`. Each user has exactly one `role_id` FK, supporting consistent role naming across the application and easier extension if new roles are added later.
+2. **Manager–Team Relationship:** `USER.manager_id` and `RESOURCE.manager_id` both reference a MANAGER `USER`. On assign-manager, both columns are updated. Manager-scoped queries (`findByManagerId`) filter on `RESOURCE.manager_id`.
 
-3. **Manager–Team Relationship:** `USER.manager_id` is a self-referencing FK to another `USER` (with MANAGER role). This enables manager-scoped visibility on the Resource Dashboard and Allocate Resource screens — managers only see resources whose linked user reports to them.
+3. **Normalised Role Lookup:** Roles are stored in a dedicated `ROLE` table. Each user has exactly one `role_id` FK.
 
-4. **Skill Catalogue vs. Resource Proficiency:** `SKILL` is the master catalogue of skill names and categories (used for grouping in the Resource Dashboard skill summary). `RESOURCE_SKILL` is the junction table linking a resource to a skill with a proficiency level. Admin adds skills to the catalogue when needed, then assigns them to resources via `RESOURCE_SKILL` (Screen 3.1.3).
+4. **Skill Catalogue vs. Resource Proficiency:** `SKILL` is the master catalogue. `RESOURCE_SKILL` is the junction table linking a resource to a skill with a proficiency level.
 
-5. **No Redundant Identity Fields on Resource:** Fields removed from the old `EMPLOYEE` table — `name`, `email`, `is_active`, `manager_id`, `department`, `designation` — are either owned by `USER` or derived from allocation state. `is_active` deactivation is handled at the `USER` level; the linked `RESOURCE` row remains for historical allocation and timesheet data.
+5. **Timesheet Compliance:** `TIMESHEET.reminder_count` and `last_reminder_sent_at` track email reminders. `RESOURCE.timesheet_access_frozen` blocks submission after repeated misses; managers restore access via the Restore Timesheet Access screen.
 
-6. **Story Points:** `PROJECT.total_story_points` and `MILESTONE.story_points` track progress (Screens 3.2.2, 3.2.4). `PROJECT.status` includes `COMPLETED` (Screen 3.2.3).
+6. **Project Health Notifications:** `PROJECT.at_risk_notified_at` prevents duplicate AT_RISK alert emails until health recovers.
 
-7. **AI Input Data Source:** The LLM's answers are fuelled by joining `USER` (name, department), `RESOURCE`, `RESOURCE_SKILL` → `SKILL`, `ALLOCATION` (free capacity), and `ACTIVITY_TAG` (recent practical skill evidence) via `TIMESHEET_ENTRY`.
+7. **Story Points:** `PROJECT.total_story_points` and `MILESTONE.story_points` feed scheduler health rules and manager project-detail views.
 
-8. **System Settings:** A single-row `SYSTEM_CONFIG` table stores dynamic application settings like the LLM key and the scheduler execution interval.
+8. **AI Configuration:** `SYSTEM_CONFIG` stores `llm_host`, `llm_model`, and `llm_api_key` for the unified `GemmaAIService` (Ollama-compatible or cloud OpenAI-compatible endpoints such as Groq).
 
-### Changes from Previous ER (V4 initial) → Normalised V4:
+### Changes from prior ER → current schema:
 
 | Area | Before | After |
 |------|--------|-------|
-| Workforce entity | `EMPLOYEE` | `RESOURCE` (workforce state only) |
-| Role storage | `enum role` on `USER` | `ROLE` lookup table + `USER.role_id` FK |
-| HR / org fields | On `EMPLOYEE` | On `USER` (`department`, `designation`, `manager_id`) |
-| Redundant fields | `name`, `email`, `is_active` duplicated | Removed from `RESOURCE`; sourced from `USER` |
-| Skills | `EMPLOYEE_SKILL` (name embedded) | `SKILL` (catalogue) + `RESOURCE_SKILL` (junction) |
-| FK renames | `employee_id` on allocations/timesheets | `resource_id` |
+| `RESOURCE` | utilisation fields only | Added `manager_id`, `timesheet_access_frozen`, `timesheet_frozen_week_start` |
+| `TIMESHEET` | status only | Added `reminder_count`, `last_reminder_sent_at` |
+| `PROJECT` | health status only | Added `at_risk_notified_at` |
+| `SYSTEM_CONFIG` | provider + API key | Added `llm_host`, `llm_model`; provider enum is `gemma` only |
+| `ALLOCATION` | no audit column | Added `created_at` |

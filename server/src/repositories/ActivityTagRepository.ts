@@ -38,8 +38,7 @@ export class ActivityTagRepository implements IRepository<ActivityTag> {
     );
     return rows;
   }
-
-  /** Returns all unique tags a resource used in the last N weeks — feeds AI skill matching. */
+  
   async findRecentTagsByResource(resourceId: number, weeksBack: number): Promise<string[]> {
     const [rows] = await pool.query<TagRow[]>(
       `SELECT DISTINCT at.tag_name

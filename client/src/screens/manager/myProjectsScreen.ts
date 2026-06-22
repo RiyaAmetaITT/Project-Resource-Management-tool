@@ -1,10 +1,18 @@
 import { managerApi } from '../../apiClient/managerApi';
-import { printHeader, printTable, printError, printDivider, formatHealthStatus, printInfo, printMarkdownTable } from '../../utils/consoleUi';
-import { selectFromMenu, confirm } from '../../utils/inputHelpers';
+import {
+  printHeader,
+  printTable,
+  printError,
+  printDivider,
+  formatHealthStatus,
+  printInfo,
+  printMarkdownTable,
+  returnToMenuPrompt,
+} from '../../utils/consoleUi';
+import { selectFromMenu, promptText } from '../../utils/inputHelpers';
 import { formatDisplayDate } from '../../utils/dateFormat';
 import chalk from 'chalk';
 
-/** Screen 4.3 — My Projects + AI Risk Summary */
 export async function myProjectsScreen(): Promise<void> {
   printHeader('MY PROJECTS');
   console.log();
@@ -74,17 +82,34 @@ export async function myProjectsScreen(): Promise<void> {
     }
 
     printDivider();
-    const getAI = await confirm('Get AI Risk Summary?');
-    if (getAI) {
-      console.log(chalk.dim('\n  Generating AI summary...\n'));
-      const aiResult = await managerApi.aiRiskSummary(project.id);
-      printDivider();
-      console.log(chalk.bold(`\n  ── AI Risk Summary — ${detail.project.name} `));
-      console.log();
-      printMarkdownTable(aiResult.summary);
-      console.log(chalk.dim('  Note: AI-generated from milestone and timesheet data.\n'));
+    console.log('  [A] Get AI Risk Summary     [B] Back\n');
+
+    while (true) {
+      const action = (await promptText('Action')).toUpperCase();
+      if (action === 'B') return;
+
+      if (action !== 'A') {
+        console.log(chalk.red('  Enter A for AI Risk Summary or B to go back.'));
+        continue;
+      }
+
+      try {
+        console.log(chalk.dim('\n  Generating AI summary...\n'));
+        const aiResult = await managerApi.aiRiskSummary(project.id);
+        printDivider();
+        console.log(chalk.bold(`\n  ── AI Risk Summary — ${detail.project.name} `));
+        console.log();
+        printMarkdownTable(aiResult.summary);
+        console.log(chalk.dim('  Note: AI-generated from milestone and timesheet data.\n'));
+      } catch (err) {
+        printError(err instanceof Error ? err.message : 'AI risk summary failed.');
+      }
+
+      await returnToMenuPrompt();
+      return;
     }
   } catch (err) {
     printError(err instanceof Error ? err.message : 'Failed to load projects.');
+    await returnToMenuPrompt();
   }
 }

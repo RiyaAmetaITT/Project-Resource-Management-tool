@@ -4,9 +4,7 @@ import { TimesheetRepository } from '../repositories/TimesheetRepository';
 import { UserRepository } from '../repositories/UserRepository';
 import { EmailService } from './EmailService';
 import { ResourceProfile } from '../models/Resource';
-import { DAYS_IN_WEEK } from '../constants';
 import {
-  addDays,
   formatDate,
   getLastCompletedWeekStart,
   getNextWorkingDay,
@@ -15,6 +13,7 @@ import {
   isWorkingDay,
   startOfDay,
 } from '../utils/dateUtils';
+import { hasActiveAllocationDuringWeek } from '../utils/allocationWeekUtils';
 
 export class TimesheetNotificationService {
   constructor(
@@ -42,7 +41,11 @@ export class TimesheetNotificationService {
     weekStart: Date,
     today: Date,
   ): Promise<void> {
-    const hadAllocation = await this.hadActiveAllocationDuringWeek(employee.id, weekStart);
+    const hadAllocation = await hasActiveAllocationDuringWeek(
+      this.allocationRepository,
+      employee.id,
+      weekStart,
+    );
     if (!hadAllocation) return;
 
     const timesheet = await this.timesheetRepository.findByResourceAndWeek(employee.id, weekStart);
@@ -145,15 +148,5 @@ export class TimesheetNotificationService {
     if (!managerUserId) return null;
     const manager = await this.userRepository.findById(managerUserId);
     return manager?.email ?? null;
-  }
-
-  private async hadActiveAllocationDuringWeek(resourceId: number, weekStart: Date): Promise<boolean> {
-    const weekEnd = addDays(weekStart, DAYS_IN_WEEK - 1);
-    const utilisation = await this.allocationRepository.sumUtilisationInPeriod(
-      resourceId,
-      weekStart,
-      weekEnd,
-    );
-    return utilisation > 0;
   }
 }

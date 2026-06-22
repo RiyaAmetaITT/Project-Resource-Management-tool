@@ -3,7 +3,6 @@ import { printHeader, printSuccess, printError } from '../../../utils/consoleUi'
 import { confirm } from '../../../utils/inputHelpers';
 import { promptUserLookup } from '../../../utils/userLookup';
 
-/** Screen 3.4.4 — Deactivate User */
 export async function deactivateUserScreen(): Promise<void> {
   printHeader('DEACTIVATE USER');
   console.log();

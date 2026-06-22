@@ -7,7 +7,7 @@ import { createManagerService } from '../bootstrap/createManagerService';
 const router = Router();
 const managerOnly = requireRole(Role.MANAGER);
 
-const managerService = createManagerService();
+const { managerService } = createManagerService();
 const controller = new ManagerController(managerService);
 
 router.get('/resources/dashboard', managerOnly, controller.getResourceDashboard);

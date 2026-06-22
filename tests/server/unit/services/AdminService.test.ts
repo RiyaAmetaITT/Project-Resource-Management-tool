@@ -1,4 +1,7 @@
 import { AdminService } from '../../../../server/src/services/AdminService';
+import { AdminUserService } from '../../../../server/src/services/AdminUserService';
+import { AdminEmployeeService } from '../../../../server/src/services/AdminEmployeeService';
+import { AdminProjectService } from '../../../../server/src/services/AdminProjectService';
 import { UserRepository } from '../../../../server/src/repositories/UserRepository';
 import { RoleRepository } from '../../../../server/src/repositories/RoleRepository';
 import { ResourceRepository } from '../../../../server/src/repositories/ResourceRepository';
@@ -55,17 +58,18 @@ describe('AdminService', () => {
     authService.hashPassword.mockResolvedValue('hashed');
 
     service = new AdminService(
-      userRepo,
-      roleRepo,
-      resourceRepo,
-      skillRepo,
-      resourceSkillRepo,
-      projectRepo,
-      milestoneRepo,
+      new AdminUserService(userRepo, roleRepo, resourceRepo, authService),
+      new AdminEmployeeService(
+        userRepo,
+        resourceRepo,
+        skillRepo,
+        resourceSkillRepo,
+        projectRepo,
+        allocationRepo,
+      ),
+      new AdminProjectService(userRepo, projectRepo, milestoneRepo),
       configRepo,
-      allocationRepo,
       allocationService,
-      authService,
     );
   });
 
@@ -330,6 +334,18 @@ describe('AdminService', () => {
       projectRepo.findById.mockResolvedValue(makeProject({ id: 1 }));
       await service.updateProject(1, { name: 'Renamed' });
       expect(projectRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({ name: 'Renamed' }));
+    });
+
+    it('updates status and manager without clearing dates', async () => {
+      projectRepo.findById.mockResolvedValue(makeProject({ id: 3 }));
+      userRepo.findById.mockResolvedValue(makeUser({ id: 6, role: Role.MANAGER }));
+
+      await service.updateProject(3, { status: ProjectStatus.ON_HOLD, managerId: 6 });
+
+      expect(projectRepo.update).toHaveBeenCalledWith(3, {
+        status: ProjectStatus.ON_HOLD,
+        managerId: 6,
+      });
     });
 
     it('rejects milestone update when milestone missing', async () => {

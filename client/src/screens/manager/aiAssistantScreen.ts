@@ -18,7 +18,6 @@ const MENU_OPTIONS = [
   'Back',
 ];
 
-/** Screen 4.5 — AI Assistant */
 export async function aiAssistantScreen(): Promise<void> {
   printHeader('AI ASSISTANT');
   console.log();

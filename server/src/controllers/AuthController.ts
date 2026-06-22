@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 
 import { ChangePasswordDto, LoginDto } from '../dtos/auth.dto';
-import { AppError } from '../errors/AppError';
-import { AuthenticatedRequest } from '../middleware/authMiddleware';
-import { AuthService } from '../services/AuthService';
+import { AuthenticatedRequest, getAuthenticatedUser } from '../middleware/authMiddleware';import { AuthService } from '../services/AuthService';
 
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -24,11 +22,7 @@ export class AuthController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const userId = req.user?.userId;
-      if (userId === undefined) {
-        return next(AppError.unauthorized('Not authenticated.'));
-      }
-
+      const userId = getAuthenticatedUser(req).userId;
       const { newPassword, confirmPassword } = req.body as ChangePasswordDto;
       await this.authService.changePassword(userId, newPassword, confirmPassword);
       res.status(200).json({ success: true, message: 'Password updated successfully.' });
