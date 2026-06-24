@@ -323,49 +323,49 @@ sequenceDiagram
     participant DB
     participant Email
 
-    loop Every N hours (configurable via system_config)
-        Scheduler->>Scheduler: Wake up (node-cron worker thread)
+    loop Every N hours configurable via system_config
+        Scheduler->>Scheduler: Wake up node-cron worker thread
 
-        Note over Scheduler,DB: Step 1: Resource Utilisation
+        Note over Scheduler,DB: Step 1 Resource Utilisation
         Scheduler->>DB: SELECT all active resources
-        Scheduler->>Scheduler: Sum today's overlapping utilisation % per resource
-        Scheduler->>DB: UPDATE total_utilisation; set status BENCH or ALLOCATED
+        Scheduler->>Scheduler: Sum overlapping utilisation per resource for today
+        Scheduler->>DB: UPDATE total_utilisation and set status BENCH or ALLOCATED
 
-        Note over Scheduler,DB: Step 2: Flag Missed Timesheets
-        Scheduler->>DB: For past allocated weeks without submission, INSERT status = MISSED
+        Note over Scheduler,DB: Step 2 Flag Missed Timesheets
+        Scheduler->>DB: INSERT MISSED for past allocated weeks without submission
 
-        Note over Scheduler,Email: Step 3: Timesheet Email Reminders & Freeze
-        Scheduler->>Scheduler: On working days only — compare today to deadline calendar
+        Note over Scheduler,Email: Step 3 Timesheet Email Reminders and Freeze
+        Scheduler->>Scheduler: On working days only compare today to deadline calendar
         Scheduler->>DB: Find allocated employees with unsubmitted last-week timesheet
-        alt Today = 1st working day after deadline
+        alt Today is 1st working day after deadline
             Scheduler->>Email: Send reminder 1 to employee
-            Scheduler->>DB: UPDATE reminder_count = 1 on timesheet
-        else Today = 2nd working day after deadline
+            Scheduler->>DB: UPDATE reminder_count to 1 on timesheet
+        else Today is 2nd working day after deadline
             Scheduler->>Email: Send reminder 2 to employee
-            Scheduler->>DB: UPDATE reminder_count = 2 on timesheet
-        else Today = 3rd working day after deadline
-            Scheduler->>DB: SET timesheet_access_frozen = TRUE on resource
-            Scheduler->>Email: Notify employee + manager of freeze
+            Scheduler->>DB: UPDATE reminder_count to 2 on timesheet
+        else Today is 3rd working day after deadline
+            Scheduler->>DB: SET timesheet_access_frozen TRUE on resource
+            Scheduler->>Email: Notify employee and manager of freeze
         end
 
-        Note over Scheduler,DB: Step 4: Flag Overdue Milestones
-        Scheduler->>DB: SELECT milestones WHERE due_date < today AND status != DONE
-        Scheduler->>DB: UPDATE milestone SET health_flag = OVERDUE
+        Note over Scheduler,DB: Step 4 Flag Overdue Milestones
+        Scheduler->>DB: SELECT incomplete milestones past due date
+        Scheduler->>DB: UPDATE milestone health_flag to OVERDUE
 
-        Note over Scheduler,Email: Step 5: Compute Project Health & Notify
-        Scheduler->>DB: SELECT projects, milestones, last-week timesheet stats
-        Scheduler->>Scheduler: Apply health rules (overdue milestones, hours, story points)
-        alt Milestone overdue OR hours/SP critical
-            Scheduler->>DB: UPDATE health_status = AT_RISK
-            opt First AT_RISK transition (at_risk_notified_at is null)
+        Note over Scheduler,Email: Step 5 Compute Project Health and Notify
+        Scheduler->>DB: SELECT projects milestones and last-week timesheet stats
+        Scheduler->>Scheduler: Apply health rules for milestones hours and story points
+        alt Milestone overdue or hours or SP critical
+            Scheduler->>DB: UPDATE health_status to AT_RISK
+            opt First AT_RISK transition when at_risk_notified_at is null
                 Scheduler->>Email: Send project health alert to manager
                 Scheduler->>DB: SET at_risk_notified_at
             end
-        else Milestone approaching OR hours/SP low
-            Scheduler->>DB: UPDATE health_status = ATTENTION
-        else On time & expected progress
-            Scheduler->>DB: UPDATE health_status = ON_TRACK
-            Scheduler->>DB: CLEAR at_risk_notified_at if health recovered
+        else Milestone approaching or hours or SP low
+            Scheduler->>DB: UPDATE health_status to ATTENTION
+        else On time and expected progress
+            Scheduler->>DB: UPDATE health_status to ON_TRACK
+            Scheduler->>DB: CLEAR at_risk_notified_at when health recovered
         end
 
         Scheduler->>Scheduler: Sleep until next interval
