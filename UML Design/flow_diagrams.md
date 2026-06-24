@@ -81,7 +81,7 @@ flowchart TD
 
 ## 3. Manager Menu Navigation
 
-> **Scoping Rule:** All employee lookups on this menu are scoped to the Manager's own team (`RESOURCE.manager_id` matching the logged-in Manager).
+> **Scoping Rule:** Dashboard, direct allocation, timesheets, and restore-access use the manager's team (`RESOURCE.manager_id`). AI Skill Match searches **all active employees** organisation-wide (manager must own the selected project). AI Team Build searches organisation-wide **bench** employees only.
 
 ```mermaid
 flowchart TD
@@ -93,7 +93,6 @@ flowchart TD
     ResDash -. "Back" .-> ManagerMenu
 
     ManagerMenu --> AllocRes[2. Allocate Resource]
-    AllocRes --> AIAlloc[Find resource using AI]
     AllocRes --> DirectAlloc[Allocate directly]
     DirectAlloc --> ValidateUtil[Validate utilisation via API]
     AllocRes --> EndAlloc[End an existing allocation]
@@ -118,9 +117,10 @@ flowchart TD
     RestoreTS -. "Back" .-> ManagerMenu
 
     ManagerMenu --> AIAssist[6. AI Assistant]
-    AIAssist --> SkillMatch[Skill Match]
-    SkillMatch --> GoToAlloc[Go to Allocate Resource]
+    AIAssist --> SkillMatch[Skill Match — view suggestions only]
+    SkillMatch -. "Back" .-> AIAssist
     AIAssist --> TeamBuild[Complete Team Building]
+    TeamBuild -. "Back" .-> AIAssist
     AIAssist --> RiskSumm[Risk Summary]
     RiskSumm -. "Back" .-> AIAssist
     AIAssist -. "Back" .-> ManagerMenu
@@ -162,43 +162,93 @@ flowchart TD
 
 ---
 
-## 5. Logical Flow: AI-Assisted Resource Allocation
+## 5. Logical Flow: AI Skill Match
+
+Entry point: **Manager Menu → AI Assistant → Skill Match**. Results are suggestions only; the manager allocates separately via **Allocate Resource** if they choose to proceed.
 
 ```mermaid
 flowchart TD
-    Start([Manager initiates AI Allocation]) --> Proj[Select Project]
+    Start([AI Assistant → Skill Match]) --> Proj[Enter Project ID]
     Proj --> Req[Describe requirement in plain English]
+    Req --> API[POST /manager/ai/skill-match]
 
     subgraph System Backend Process
-        Req --> API[POST /manager/ai/skill-match]
-        API --> ScopeTeam[Filter to Manager's team only]
-        ScopeTeam --> FilterCap[Filter resources with free capacity]
-        FilterCap --> CheckEmpty{Found Candidates?}
-        CheckEmpty -- No --> ReturnEmpty[Return: No one has capacity]
-        CheckEmpty -- Yes --> GatherData[Gather skills, allocations, recent tags]
+        API --> OwnProj[Assert manager owns project]
+        OwnProj --> LoadAll[Load all active employees — org-wide]
+        LoadAll --> GatherData[Gather skills, utilisation, recent activity tags]
         GatherData --> BuildSumm[Build structured candidate summaries]
-        BuildSumm --> LLMCall[Call GemmaAIService with host/model/key]
+        BuildSumm --> ParseHrs{Requirement mentions weekly hours?}
+        ParseHrs -- Yes --> FilterPart[Keep employees with enough free hours/week]
+        ParseHrs -- No --> FilterFull[Keep employees with any free capacity]
+        FilterPart --> CheckEmpty{Found candidates?}
+        FilterFull --> CheckEmpty
+        CheckEmpty -- No --> ThrowErr[400: No employees have enough capacity]
+        CheckEmpty -- Yes --> LLMCall[Call GemmaAIService via AIServiceFactory]
         LLMCall --> LLMParse[LLM ranks & generates reasons]
+        LLMParse --> FilterValid[Drop LLM results not in candidate set]
+        FilterValid --> Enrich[Enrich with employeeId, availability, suggested %]
     end
 
-    LLMParse --> ShowUI[Console displays AI-Matched Results]
-    ReturnEmpty --> ShowEmptyUI[Console: Try adjusting requirements]
-
-    ShowUI --> SelectEmp[Manager selects employee]
-    SelectEmp --> EnterDetails[Enter Utilisation %, Dates]
-    EnterDetails --> Validate[POST /manager/allocations/validate]
-
-    Validate -- "Total > 100% or Bad Dates" --> ShowError[Show Validation Error]
-    ShowError --> EnterDetails
-
-    Validate -- Valid --> Confirm[Confirm Allocation]
-    Confirm --> SaveDB[(POST /manager/allocations)]
-    SaveDB --> End([Allocation Completed])
+    Enrich --> ShowUI[Console displays ranked suggestions + disclaimer]
+    ThrowErr --> ShowErr[Console shows error message]
+    ShowUI --> End([Return to AI Assistant menu])
+    ShowErr --> End
 ```
 
 ---
 
-## 6. Logical Flow: Background Scheduler
+## 6. Logical Flow: AI Team Build
+
+Entry point: **Manager Menu → AI Assistant → Complete Team Building**. No project selection — searches organisation-wide bench only.
+
+```mermaid
+flowchart TD
+    Start([AI Assistant → Team Build]) --> Req[Describe all roles in one prompt]
+    Req --> API[POST /manager/ai/team-build]
+
+    subgraph System Backend Process
+        API --> LoadBench[Load active BENCH employees — org-wide]
+        LoadBench --> BuildBench[Build bench candidate profiles with skills]
+        BuildBench --> TryAI[Call GemmaAIService.generateTeamBuild]
+        TryAI --> AIOk{AI returned assignments?}
+        AIOk -- No / timeout --> RuleBased[Fallback: rule-based role matching]
+        AIOk -- Yes --> AssignRoles[Map roles to bench employees]
+        RuleBased --> AssignRoles
+        AssignRoles --> Dedupe[Reject duplicate person across roles]
+        Dedupe --> GapAnalysis[Analyse unfilled roles — skill / availability / bench gaps]
+    end
+
+    GapAnalysis --> ShowUI[Console: Filled roles table + unfilled role details]
+    ShowUI --> End([Return to AI Assistant menu — verify before allocating])
+```
+
+---
+
+## 7. Logical Flow: AI Risk Summary
+
+Entry points: **My Projects → Project Details → [A] AI Risk Summary**, or **AI Assistant → Risk Summary**.
+
+```mermaid
+flowchart TD
+    Start([Select project for risk analysis]) --> API[POST /manager/ai/risk-summary]
+
+    subgraph System Backend Process
+        API --> OwnProj[Assert manager owns project]
+        OwnProj --> GatherFacts[Collect milestones, allocations, recent hours vs expected]
+        GatherFacts --> TryLLM[Call GemmaAIService.generateRiskSummary]
+        TryLLM --> LLMOk{AI call succeeded?}
+        LLMOk -- Yes --> Summary[Markdown risk summary from LLM]
+        LLMOk -- No --> Fallback[Rule-based fallback summary table]
+    end
+
+    Summary --> ShowUI[Console displays summary + AI-generated disclaimer]
+    Fallback --> ShowUI
+    ShowUI --> End([Return to previous screen])
+```
+
+---
+
+## 8. Logical Flow: Background Scheduler
 
 ```mermaid
 flowchart TD
@@ -256,6 +306,7 @@ flowchart TD
 
 ### Changes from prior diagrams → current implementation:
 - **Admin:** Deactivate preview step; reactivate user from View All Users; system config uses LLM host/model instead of provider swap.
-- **Manager:** Added Restore Timesheet Access (menu item 5); AI Assistant includes Team Building; direct allocation validates via API.
+- **Manager:** AI lives under AI Assistant (not Allocate Resource); Skill Match is org-wide and read-only; Team Build and Risk Summary have dedicated flows; direct allocation validates via API.
 - **Employee:** Login checks missed status and freeze state; submit flow loads context from API first.
+- **AI:** Skill Match filters by parsed weekly hours or free capacity before LLM; Team Build falls back to rule-based matching; Risk Summary falls back when LLM is unavailable.
 - **Scheduler:** Six logical steps including missed flagging, email reminders, access freeze, and AT_RISK manager notifications.
