@@ -183,7 +183,7 @@ sequenceDiagram
 ---
 
 ## 4. Manager AI Assistant
-Covers Skill Match, Team Build, and Risk Summary. All three are read-only suggestions — the manager allocates separately via Sequence 3.
+Covers Skill Match, Team Build, and Risk Summary. All three are read-only suggestions; the manager allocates separately via Sequence 3.
 
 ```mermaid
 sequenceDiagram
@@ -193,8 +193,8 @@ sequenceDiagram
     participant DB
     participant LLM
 
-    Note over Manager,LLM: Skill Match — org-wide candidates (manager must own project)
-    Manager->>Console: AI Assistant → Skill Match
+    Note over Manager,LLM: Skill Match - org-wide candidates (manager must own project)
+    Manager->>Console: AI Assistant to Skill Match
     Manager->>Console: Enter project ID + requirement
     Console->>Server: POST /manager/ai/skill-match {projectId, requirement}
     Server->>DB: Assert manager owns project
@@ -207,29 +207,29 @@ sequenceDiagram
         Console-->>Manager: Show error — adjust requirement
     else Candidates found
         Server->>LLM: generateSkillMatch (GemmaAIService)
-        LLM-->>Server: Ranked names + plain-English reasons
-        Server->>Server: Drop invalid names; enrich with employeeId & availability
+        LLM-->>Server: Ranked names with plain-English reasons
+        Server->>Server: Drop invalid names and enrich with employeeId and availability
         Server-->>Console: Enriched match results
         Console-->>Manager: Display suggestions + verify-before-allocate note
     end
 
-    Note over Manager,LLM: Team Build — org-wide bench only
-    Manager->>Console: AI Assistant → Complete Team Building
+    Note over Manager,LLM: Team Build - org-wide bench only
+    Manager->>Console: AI Assistant to Complete Team Building
     Manager->>Console: Describe all roles in one prompt
     Console->>Server: POST /manager/ai/team-build {requirement}
     Server->>DB: Load active BENCH employees (org-wide)
     Server->>DB: Build bench profiles with skills
     Server->>LLM: generateTeamBuild (with timeout)
     alt AI returns assignments
-        LLM-->>Server: Role → employee mappings
+        LLM-->>Server: Role to employee mappings
     else AI fails or times out
-        Server->>Server: Fallback — rule-based role matching
+        Server->>Server: Fallback to rule-based role matching
     end
-    Server->>Server: Deduplicate people across roles; analyse unfilled gaps
-    Server-->>Console: filled + unfilled roles (skill / availability / bench gaps)
+    Server->>Server: Deduplicate people across roles and analyze unfilled gaps
+    Server-->>Console: Filled and unfilled roles (skill / availability / bench gaps)
     Console-->>Manager: Display team build results + disclaimer
 
-    Note over Manager,LLM: Risk Summary — My Projects or AI Assistant
+    Note over Manager,LLM: Risk Summary - My Projects or AI Assistant
     Manager->>Console: Select project (from My Projects or AI Assistant)
     Console->>Server: POST /manager/ai/risk-summary {projectId}
     Server->>DB: Assert manager owns project
@@ -240,7 +240,7 @@ sequenceDiagram
     else LLM unavailable
         Server->>Server: Build rule-based fallback summary table
     end
-    Server-->>Console: { summary }
+    Server-->>Console: Summary response
     Console-->>Manager: Display risk summary + AI-generated disclaimer
 ```
 
